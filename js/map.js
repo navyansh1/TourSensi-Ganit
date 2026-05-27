@@ -30,7 +30,11 @@ export function initMap() {
   const el = document.getElementById('map');
   if (!el || typeof L === 'undefined') return;
 
-  map = L.map(el, { zoomControl: true, attributionControl: true }).setView([20.5937, 78.9629], 5);
+  map = L.map(el, {
+    zoomControl: true,
+    attributionControl: true,
+    scrollWheelZoom: false,
+  }).setView([20.5937, 78.9629], 5);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '&copy; OpenStreetMap',

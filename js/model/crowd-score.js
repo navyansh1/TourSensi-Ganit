@@ -60,7 +60,7 @@ export function computeIntelligence({ weather, isHoliday, holidayName, now = new
   const peak = peakWindowLabel(forecastHours, forecastVisitors);
   const trafficState = trafficStateFor(score, isHoliday, isWeekend);
   const eventContext = eventContextFor({ isHoliday, holidayName, isWeekend });
-  const advisories = synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday });
+  const advisories = synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday, now });
 
   return {
     score: { value: score, raw: score },
@@ -155,7 +155,7 @@ function recommendationFor({ risk, hotspots, peak, trafficState, isHoliday }) {
   return `Conditions are calm. Routine staffing sufficient${isHoliday ? '; recheck mid-day as holiday traffic builds' : ''}.`;
 }
 
-function synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday }) {
+function synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday, now }) {
   const out = [];
   const top = hotspots[0];
   if (top) {
@@ -164,6 +164,8 @@ function synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday })
       level,
       title: top.intensity > 80 ? 'High crowd buildup' : 'Crowd buildup expected',
       body: `${top.name} projected at ${top.intensity}% intensity around ${peak}.`,
+      generatedAt: offsetIso(now, 6),
+      source: 'Synthetic signal',
     });
   }
   if (trafficState !== 'Light') {
@@ -171,6 +173,8 @@ function synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday })
       level: trafficState === 'Heavy' ? 'high' : 'moderate',
       title: 'Vehicle inflow pressure',
       body: `Approach roads showing ${trafficState.toLowerCase()} congestion${isHoliday ? ' on holiday traffic' : ''}; activate alternate routes.`,
+      generatedAt: offsetIso(now, 18),
+      source: 'Synthetic signal',
     });
   }
   out.push({
@@ -179,8 +183,14 @@ function synthesizeAdvisories({ risk, hotspots, trafficState, peak, isHoliday })
     body: risk.level === 'high'
       ? 'Pre-deploy medical, rescue and crowd-control teams to the top two hotspots before peak window.'
       : 'Routine medical and rescue staging is adequate. Refresh staff briefing before peak window.',
+    generatedAt: offsetIso(now, 32),
+    source: 'Synthetic signal',
   });
   return out;
+}
+
+function offsetIso(date, minutesAgo) {
+  return new Date(date.getTime() - minutesAgo * 60 * 1000).toISOString();
 }
 
 function seedFromPlaceType(type) {

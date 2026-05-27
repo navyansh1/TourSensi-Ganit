@@ -11,7 +11,7 @@ const TIP_CONTENT = {
   'stat-weather':    { label: 'Weather Impact', src: 'Open-Meteo API (live, free)', detail: 'Real current weather for the destination\'s coordinates, fetched from api.open-meteo.com — no API key required.' },
   'stat-peak':       { label: 'Peak Window', src: 'Synthetic model', detail: 'Hour with highest predicted visitors in the forecast curve, padded ±1 hour.' },
   'hero-score':      { label: 'Destination Health Score', src: 'Synthetic model (inputs: real weather + real holidays)', detail: 'Score = 100 − penalties for weekend, public holiday, pleasant weather, peak hour, and news events. Range 0–100. Higher = safer.' },
-  'hero-badge':      { label: 'Risk Badge', src: 'Derived from Health Score', detail: 'Low ≥ 75 · Moderate 50–74 · High < 50' },
+  'hero-badge':      { label: 'Risk Badge', src: 'Derived from Health Score', detail: 'Healthy ≥ 75 · Caution 50–74 · Risky < 50' },
   'hero-rec':        { label: 'Recommendation', src: 'Gemini API (if key set) or synthetic fallback', detail: 'When a Gemini API key is in config.js, a one-sentence action recommendation is generated. Otherwise a rule-based fallback is shown.' },
   'ctx-event':       { label: 'Event Context', src: 'Nager.Date (public holidays) + day-of-week', detail: 'National public holidays from date.nager.at, combined with weekend detection. Free, no key.' },
   'ctx-traffic':     { label: 'Traffic', src: 'Synthetic model', detail: 'Inferred. Phase 2 upgrade: Google Routes API traffic-aware routing (5,000 free calls/month but requires billing-enabled GCP).' },
@@ -91,7 +91,6 @@ const KEY_MAP = {
 
 const CLASS_MAP = {
   'map-card':        'map-card',
-  'advisories-card': 'advisories-card',
   'news-row':        'news-row',
 };
 

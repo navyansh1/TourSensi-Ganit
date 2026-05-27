@@ -13,6 +13,10 @@ export const state = {
   forecast: { hours: [], visitors: [] },
   hotspots: [],                  // [{ name, intensity, lat?, lon? }]
   advisories: [],                // [{ level, title, body }]
+  advisoryWorkflow: {
+    approved: null,              // { id, text, placeLabel, risk, requestedBy, submittedAt, publishedAt }
+    pending: [],                 // [{ id, text, placeLabel, risk, requestedBy, submittedAt }]
+  },
   news: [],                      // [{ title, source, url, publishedAt }]
   _newsLoaded: false,
   weather: null,                 // raw weather object

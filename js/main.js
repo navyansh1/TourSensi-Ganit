@@ -7,16 +7,25 @@ import { initCharts } from './charts.js';
 import { initMap } from './map.js';
 import { initSearch } from './search.js';
 import { initTooltips } from './tooltip.js';
-import { initRole, updatePublicTip } from './role.js';
+import { getRole, initRole, updatePublicTip } from './role.js';
 import { fetchWeather } from './api/weather.js';
 import { fetchTodayHoliday } from './api/holidays.js';
 import { fetchNews } from './api/news.js';
-import { generate, recommendationPrompt, publicAdvisoryPrompt, hotspotsPrompt } from './api/gemini.js';
+import { generate, generateDetailed, recommendationPrompt, publicAdvisoryPrompt, hotspotsPrompt } from './api/gemini.js';
 import { computeIntelligence } from './model/crowd-score.js';
 import { injectIcons } from './icons.js';
+import {
+  approvePendingAdvisory,
+  loadAdvisoryWorkflow,
+  publishApprovedAdvisory,
+  queuePendingAdvisory,
+  rejectPendingAdvisory,
+} from './advisory-store.js';
 
 let lastPlace = null;
 let lastModelOutput = null;
+let modalMode = 'gov';
+let modalDraft = null;
 
 async function selectPlace(place) {
   lastPlace = place;
@@ -66,7 +75,6 @@ async function selectPlace(place) {
 
   updatePublicTip();
 
-  // Fire-and-forget enhancements: live news + AI recommendation + AI hotspots.
   loadNews(place).catch((e) => console.warn('news error', e));
   enhanceRecommendation(place, weather, holiday, model).catch((e) => console.warn('gemini error', e));
   enhanceHotspots(place, model).catch((e) => console.warn('gemini hotspots error', e));
@@ -74,9 +82,9 @@ async function selectPlace(place) {
 
 async function loadNews(place) {
   const items = await fetchNews({
-    apiKey:    CONFIG.NEWSDATA_API_KEY,
-    gnewsKey:  CONFIG.GNEWS_API_KEY,
-    nytKey:    CONFIG.NYT_API_KEY,
+    apiKey: CONFIG.NEWSDATA_API_KEY,
+    gnewsKey: CONFIG.GNEWS_API_KEY,
+    nytKey: CONFIG.NYT_API_KEY,
     query: place.name,
     country: place.country?.toLowerCase() === 'india' ? 'in' : undefined,
     max: 6,
@@ -92,7 +100,7 @@ async function enhanceRecommendation(place, weather, holiday, model) {
     placeType: place.type || 'destination',
     score: model.score.value,
     risk: model.risk.label,
-    day: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()],
+    day: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()],
     isWeekend: now.getDay() === 0 || now.getDay() === 6,
     hour: now.getHours(),
     weather: weather?.label || 'Unknown',
@@ -101,14 +109,18 @@ async function enhanceRecommendation(place, weather, holiday, model) {
     traffic: model.stats.traffic,
     peak: model.stats.peak,
   };
-  const text = await generate({
+  const result = await generateDetailed({
     apiKey: CONFIG.GEMINI_API_KEY,
     model: CONFIG.GEMINI_MODEL,
     prompt: recommendationPrompt(ctx),
     temperature: 0.6,
     maxTokens: 80,
   });
-  if (text) setState({ recommendation: text.replace(/^"|"$/g, '') });
+  if (result.text) {
+    setState({ recommendation: result.text.replace(/^"|"$/g, '') });
+    return;
+  }
+  console.warn('Gemini recommendation failed:', result.error, result.modelTried);
 }
 
 async function enhanceHotspots(place, model) {
@@ -123,14 +135,12 @@ async function enhanceHotspots(place, model) {
   if (!text) return;
   let names;
   try {
-    // Strip any markdown fences Gemini might add
     const clean = text.replace(/```[a-z]*/gi, '').replace(/```/g, '').trim();
     names = JSON.parse(clean);
   } catch {
     return;
   }
   if (!Array.isArray(names) || names.length < 3) return;
-  // Keep the existing intensity values but swap in real zone names from Gemini
   const existingHotspots = model.hotspots;
   const merged = names.slice(0, existingHotspots.length).map((name, i) => ({
     name: String(name).slice(0, 30),
@@ -139,33 +149,119 @@ async function enhanceHotspots(place, model) {
   setState({ hotspots: merged });
 }
 
+function isCompleteAdvisory(text) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  if (value.length < 120) return false;
+  return /[.!?]["']?$/.test(value);
+}
+
+async function generatePublicAdvisory(ctx) {
+  const basePrompt = publicAdvisoryPrompt(ctx);
+  const attempts = [
+    basePrompt,
+    `${basePrompt}\n\nImportant: Return exactly one complete paragraph of 4 full sentences. Do not stop mid-sentence.`,
+  ];
+
+  let lastResult = { text: null, error: 'Gemini request failed.' };
+  for (const prompt of attempts) {
+    const result = await generateDetailed({
+      apiKey: CONFIG.GEMINI_API_KEY,
+      model: CONFIG.GEMINI_MODEL,
+      prompt,
+      temperature: 0.65,
+      maxTokens: 420,
+    });
+    if (result.text && isCompleteAdvisory(result.text)) return result;
+    lastResult = result.text ? { ...result, error: 'Gemini returned an incomplete advisory.' } : result;
+  }
+  return lastResult;
+}
+
+function syncAdvisoryWorkflow(workflow = loadAdvisoryWorkflow()) {
+  setState({ advisoryWorkflow: workflow });
+}
+
+function buildAdvisoryDraft(text) {
+  return {
+    text: String(text || '').trim(),
+    placeLabel: lastPlace?.label || state.place?.label || 'Destination',
+    risk: lastModelOutput?.risk?.label || state.risk?.label || 'Moderate',
+    requestedBy: modalMode,
+    submittedAt: new Date().toISOString(),
+  };
+}
+
+function wirePendingAdvisoryActions() {
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-advisory-action]');
+    if (!button) return;
+
+    const action = button.getAttribute('data-advisory-action');
+    const id = button.getAttribute('data-advisory-id');
+    if (!id) return;
+
+    if (action === 'approve') {
+      syncAdvisoryWorkflow(approvePendingAdvisory(id));
+      return;
+    }
+    if (action === 'reject') {
+      syncAdvisoryWorkflow(rejectPendingAdvisory(id));
+    }
+  });
+}
+
 function wireAdvisoryModal() {
-  const btn = document.getElementById('generateAdvisoryBtn');
+  const govBtn = document.getElementById('generateAdvisoryBtn');
+  const publicBtn = document.getElementById('requestAdvisoryBtn');
   const modal = document.getElementById('advisoryModal');
   const body = document.getElementById('advisoryModalBody');
   const copy = document.getElementById('copyAdvisoryBtn');
   const regen = document.getElementById('regenerateAdvisoryBtn');
-  if (!btn || !modal) return;
+  const submit = document.getElementById('submitAdvisoryBtn');
+  const title = document.getElementById('advisoryModalTitle');
+  if (!govBtn || !publicBtn || !modal || !body || !copy || !regen || !submit || !title) return;
 
-  const openModal = () => { modal.hidden = false; document.body.style.overflow = 'hidden'; };
-  const closeModal = () => { modal.hidden = true; document.body.style.overflow = ''; };
+  const openModal = () => {
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+  };
+  const closeModal = () => {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    modalDraft = null;
+  };
 
-  modal.querySelectorAll('[data-close-modal]').forEach((el) => el.addEventListener('click', closeModal));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+  function setModalMode(role) {
+    modalMode = role;
+    title.textContent = role === 'gov' ? 'Publish Public Advisory' : 'Request Public Advisory';
+    submit.textContent = role === 'gov' ? 'Publish To Website' : 'Submit For Review';
+  }
+
+  function setLoading(isLoading) {
+    regen.disabled = isLoading;
+    submit.disabled = isLoading || !modalDraft;
+    copy.disabled = isLoading;
+  }
 
   async function generateAdvisory() {
-    body.innerHTML = `<p class="muted">Generating advisory…</p>`;
+    modalDraft = null;
+    setLoading(true);
+    body.innerHTML = `<p class="muted">Generating advisory...</p>`;
+
     const place = lastPlace;
     const model = lastModelOutput;
     if (!place || !model) {
       body.innerHTML = `<p class="muted">Select a destination first.</p>`;
+      setLoading(false);
       return;
     }
     if (!CONFIG.GEMINI_API_KEY) {
       body.innerHTML = `<p>${escapeHtml(model.recommendation)}</p><p class="muted">Add a Gemini API key in config.js to generate a richer public advisory.</p>`;
+      setLoading(false);
       return;
     }
-    const now = new Date();
+
     const ctx = {
       placeLabel: place.label,
       risk: model.risk.label,
@@ -176,26 +272,51 @@ function wireAdvisoryModal() {
       peak: model.stats.peak,
       traffic: model.stats.traffic,
     };
-    const text = await generate({
-      apiKey: CONFIG.GEMINI_API_KEY,
-      model: CONFIG.GEMINI_MODEL,
-      prompt: publicAdvisoryPrompt(ctx),
-      temperature: 0.65,
-      maxTokens: 320,
-    });
-    if (!text) {
-      body.innerHTML = `<p>${escapeHtml(model.recommendation)}</p><p class="muted">Gemini request failed — showing fallback recommendation.</p>`;
+    const result = await generatePublicAdvisory(ctx);
+    if (!result.text) {
+      const reason = escapeHtml(result.error || 'Gemini request failed.');
+      body.innerHTML = `<p>${escapeHtml(model.recommendation)}</p><p class="muted">${reason}</p>`;
+      setLoading(false);
       return;
     }
-    body.innerHTML = text.split(/\n+/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
+
+    modalDraft = buildAdvisoryDraft(result.text);
+    body.innerHTML = result.text.split(/\n+/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    setLoading(false);
   }
 
-  btn.addEventListener('click', async () => {
+  govBtn.addEventListener('click', async () => {
+    setModalMode('gov');
     openModal();
     await generateAdvisory();
   });
-  regen?.addEventListener('click', generateAdvisory);
-  copy?.addEventListener('click', async () => {
+
+  publicBtn.addEventListener('click', async () => {
+    setModalMode('public');
+    openModal();
+    await generateAdvisory();
+  });
+
+  submit.addEventListener('click', () => {
+    if (!modalDraft?.text) return;
+
+    if (modalMode === 'gov') {
+      syncAdvisoryWorkflow(publishApprovedAdvisory(modalDraft));
+      body.innerHTML = `<p>${escapeHtml(modalDraft.text)}</p><p class="muted">Published to the website. Public users can now see this advisory in the dashboard.</p>`;
+    } else {
+      syncAdvisoryWorkflow(queuePendingAdvisory(modalDraft));
+      body.innerHTML = `<p>${escapeHtml(modalDraft.text)}</p><p class="muted">Submitted for government review. It now appears in the pending queue.</p>`;
+    }
+    submit.disabled = true;
+  });
+
+  modal.querySelectorAll('[data-close-modal]').forEach((el) => el.addEventListener('click', closeModal));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.hidden) closeModal();
+  });
+
+  regen.addEventListener('click', generateAdvisory);
+  copy.addEventListener('click', async () => {
     const text = body.innerText.trim();
     if (!text) return;
     try {
@@ -210,11 +331,11 @@ function wireAdvisoryModal() {
 }
 
 function escapeHtml(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 function wireThemeToggle() {
-  const btn  = document.getElementById('themeToggle');
+  const btn = document.getElementById('themeToggle');
   const icon = document.getElementById('themeIcon');
   if (!btn || !icon) return;
 
@@ -230,23 +351,24 @@ function wireThemeToggle() {
   function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     icon.setAttribute('data-icon', theme === 'dark' ? 'sun' : 'moon');
-    icon.innerHTML = '';          // clear old SVG so injectIcons re-renders it
+    icon.innerHTML = '';
     injectIcons(btn);
   }
 }
 
 async function boot() {
   wireThemeToggle();
+  syncAdvisoryWorkflow();
   initUI();
   initCharts();
   initMap();
   initRole();
   wireAdvisoryModal();
+  wirePendingAdvisoryActions();
   await initSearch({
     onSelect: selectPlace,
     defaultPlace: CONFIG.DEFAULT_PLACE || 'Kodaikanal',
   });
-  // Init tooltips after first render so all elements exist in DOM.
   setTimeout(initTooltips, 50);
 }
 

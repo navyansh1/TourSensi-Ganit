@@ -88,7 +88,7 @@
               <span data-icon="alert-triangle"></span>
               <span data-bind="risk.label"></span>
             </div>
-            <div class="risk-legend">Low &ge; 75 &middot; Moderate 50&ndash;74 &middot; High &lt; 50</div>
+            <div class="risk-legend">Healthy &ge; 75 &middot; Caution 50&ndash;74 &middot; Risky &lt; 50</div>
           </div>
         </div>
 
@@ -190,7 +190,7 @@
       <article class="card chart-card">
         <header class="card-head">
           <div>
-            <h2 class="card-title">Crowd Hotspots</h2>
+            <h2 class="card-title" id="hotspotsTitle">Crowd Hotspots</h2>
             <p class="card-sub">Zone-level crowd intensity.</p>
           </div>
         </header>
@@ -216,29 +216,64 @@
         </div>
       </article>
 
-      <article class="card advisories-card">
+      <article class="card advisories-card" id="advisoriesCard">
         <header class="card-head">
           <div>
-            <h2 class="card-title"><span data-icon="alert-triangle"></span> Live Advisories</h2>
-            <p class="card-sub">Auto-generated from current signals.</p>
+            <h2 class="card-title" id="advisoryCardTitle"><span data-icon="alert-triangle"></span> Advisory Center</h2>
+            <p class="card-sub" id="advisoryCardSub">Generate, review, publish, and track advisories in one place.</p>
           </div>
         </header>
 
-        <ul class="advisory-list" id="advisoryList"></ul>
+        <div class="advisory-scroll">
+          <div class="advisory-primary">
+            <section class="advisory-panel advisory-create-panel">
+              <div class="panel-label gov-only">Create Advisory</div>
+              <div class="panel-label public-only" hidden>Request Advisory</div>
+              <p class="advisory-guide-text gov-only">Generate and publish a visitor-facing advisory for the selected destination.</p>
+              <p class="advisory-guide-text public-only" hidden>Ask the department to review and publish an advisory for this destination.</p>
+              <div class="advisory-actions">
+                <button class="btn btn-primary gov-only" id="generateAdvisoryBtn" type="button">
+                  <span data-icon="bell"></span>
+                  Generate And Publish Advisory
+                </button>
+                <button class="btn btn-ghost public-only" id="requestAdvisoryBtn" type="button" hidden>
+                  <span data-icon="bell"></span>
+                  Request Public Advisory
+                </button>
+              </div>
+            </section>
 
-        <!-- Gov mode: full advisory button -->
-        <button class="btn btn-primary gov-only" id="generateAdvisoryBtn" type="button">
-          <span data-icon="bell"></span>
-          Generate Public Advisory
-        </button>
-        <!-- Public mode: visitor tip instead -->
-        <div class="public-only public-tip" id="publicTip" hidden>
-          <span data-icon="bell"></span>
-          <div>
-            <div class="public-tip-title">Plan your visit</div>
-            <div class="public-tip-body" id="publicTipBody">Select a destination to see crowd conditions and the best time to visit.</div>
+            <section class="advisory-panel published-panel">
+              <div class="panel-label">Approved Public Advisory</div>
+              <div class="published-advisory" id="publishedAdvisory"></div>
+            </section>
+
+            <section class="advisory-panel public-only" id="publicTip" hidden>
+              <div class="panel-label">Visitor Tip</div>
+              <div class="public-tip-content">
+                <div class="public-tip-title">Plan your visit</div>
+                <div class="public-tip-body" id="publicTipBody">Select a destination to see crowd conditions and the best time to visit.</div>
+              </div>
+            </section>
           </div>
+
+          <section class="advisory-panel timeline-panel">
+            <div class="panel-label">Latest Signals</div>
+            <ul class="advisory-list" id="advisoryList"></ul>
+          </section>
         </div>
+      </article>
+    </section>
+
+    <section class="gov-only" id="pendingAdvisoryPanel" hidden>
+      <article class="card pending-review-card">
+        <header class="card-head">
+          <div>
+            <h2 class="card-title"><span data-icon="shield"></span> Pending Public Requests</h2>
+            <p class="card-sub">Government review queue for public-submitted advisory drafts.</p>
+          </div>
+        </header>
+        <div class="pending-advisory-list" id="pendingAdvisoryList"></div>
       </article>
     </section>
 
@@ -301,6 +336,7 @@
       <footer class="modal-foot">
         <button class="btn btn-ghost" type="button" id="copyAdvisoryBtn">Copy</button>
         <button class="btn btn-primary" type="button" id="regenerateAdvisoryBtn">Regenerate</button>
+        <button class="btn btn-primary" type="button" id="submitAdvisoryBtn">Publish</button>
       </footer>
     </div>
   </div>

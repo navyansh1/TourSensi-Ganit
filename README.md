@@ -1,242 +1,291 @@
-# TourSensi — Destination Intelligence Command Center
+# TourSensi - Destination Intelligence Command Center
 
-A web app that predicts crowd buildup at Indian tourist destinations (hill stations, monuments, pilgrimage sites) so authorities can act *before* a stampede or overcrowding event. Combines real weather, public holidays, day/time patterns, local news, and a transparent synthetic crowd model into a single **Destination Health Score** with AI-generated advisories.
+A web app that predicts crowd buildup at Indian tourist destinations so authorities can act before overcrowding or safety incidents. It combines real weather, public holidays, local news, and a transparent synthetic crowd model into a single **Destination Health Score** with AI-generated advisories.
 
-**Live demo:** *(add Vercel URL once deployed)*
+**Live demo:** add Vercel URL once deployed
 
 ---
 
-## How to run the project (every teammate, first time)
+## How to run the project
 
-> Pre-req: any recent Python (3.8+) or Node 16+. Nothing else to install — TourSensi is plain HTML/CSS/JS with CDN libraries, **no build step**.
+Pre-req: any recent Python (3.8+) or Node 16+. The project is plain HTML/CSS/JS with no build step.
 
 ```bash
 # 1. clone
 git clone https://github.com/navyansh1/TourSensi-Ganit.git
 cd TourSensi-Ganit
 
-# 2. create your local config (this file is .gitignored — never commit it)
+# 2. create local config
 cp config.example.js config.js
-# then open config.js in an editor and paste your own keys:
-#   - GEMINI_API_KEY    (https://aistudio.google.com/apikey)
-#   - NEWSDATA_API_KEY  (https://newsdata.io)
-# Both are optional — the app runs without them, just with reduced features.
 
-# 3. serve it (ES modules need an HTTP server — file:// will NOT work)
+# 3. fill in keys in config.js  (see "What to put in config.js" below)
+
+# 4. serve the project
 python -m http.server 5173
 # OR
 npx serve .
 
-# 4. open http://localhost:5173
+# 5. open
+http://localhost:5173
 ```
 
-> Opening `index.html` directly by double-clicking will fail silently — the JS modules require an HTTP server.
+Opening `index.html` directly in the browser will not work because the app uses ES modules.
 
 ---
 
-## How to make changes (teammate workflow)
+## What to put in config.js
 
-We use a simple feature-branch flow. **Never commit directly to `main`.**
+`config.js` is the only file teammates need to touch. Copy `config.example.js` to `config.js` and fill in:
+
+| Key | Where to get it | Required? |
+|---|---|---|
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey — restrict to your domain | Optional — enables AI advisories |
+| `GEMINI_MODEL` | Leave as `gemini-2.0-flash` or change to `gemini-2.5-flash` | Optional |
+| `NEWSDATA_API_KEY` | https://newsdata.io — free tier: 200 credits/day | Optional — enables news strip |
+| `GNEWS_API_KEY` | https://gnews.io — free tier: 100 calls/day | Optional |
+| `NYT_API_KEY` | https://developer.nytimes.com — free | Optional |
+| `DEFAULT_PLACE` | Any Indian destination name, e.g. `"Kodaikanal"` | Optional — sets startup location |
+
+The app works fully without any keys; Gemini features fall back to a synthetic recommendation and news is hidden.
+
+> **Note:** `config.js` is NOT gitignored — it ships to Vercel with blank key strings. Never paste a real key into `config.example.js`.
+
+---
+
+## Teammate workflow
+
+We use a simple feature-branch flow. Never commit directly to `main`.
 
 ```bash
-# 1. always start from the latest main
 git checkout main
 git pull origin main
-
-# 2. create a branch for your work
 git checkout -b feature/your-thing
-# branch name examples:
-#   feature/voice-input
-#   fix/map-overlap
-#   docs/readme-update
 
-# 3. make changes, test in browser
-# ... edit files ...
+# make changes
 
-# 4. commit (small, focused commits are better than one giant one)
-git add <files-you-changed>     # avoid `git add .` so you don't sneak in config.js
-git commit -m "Add voice input to search bar"
-
-# 5. push your branch to GitHub
+git add <files-you-changed>
+git commit -m "Describe your change"
 git push -u origin feature/your-thing
-
-# 6. open a Pull Request on GitHub:
-#    - Go to https://github.com/navyansh1/TourSensi-Ganit
-#    - Click "Compare & pull request"
-#    - Describe what changed + why
-#    - Request review from a teammate
 ```
 
-### Merging into `main`
-
-1. Get at least one approval on the PR.
-2. Resolve any merge conflicts locally (`git pull origin main` on your branch, fix conflicts, push again).
-3. On the PR page, click **Squash and merge** (keeps `main` history clean).
-4. Delete the branch after merging.
-5. Locally: `git checkout main && git pull` to get the new state.
-
-### Keeping your branch up to date with `main`
-
-If `main` has moved while you were working:
-
-```bash
-git checkout main
-git pull origin main
-git checkout feature/your-thing
-git merge main          # resolve any conflicts, commit
-git push
-```
+Avoid casually committing `config.js` if it contains real keys.
 
 ---
 
-## What's done
+## What the app does now
 
 ### Core dashboard
-- **Place search** — Fuse.js fuzzy autocomplete over ~100 curated Indian destinations; falls back to Nominatim live geocoding for anything not in the local list.
-- **Hero card** — Destination Health Score (0–100), risk badge (Low/Moderate/High) with always-visible legend, one-line recommendation, current situation panel (event, traffic, weather, forecast inflow).
-- **Live weather panel** — 10 metrics (temp, feels-like, humidity, wind, UV, visibility, sunrise/sunset, daily high/low, rain) from Open-Meteo. Free, no API key.
-- **Stat cards row** — Visitors Today, Crowd Risk, Traffic State, Weather Impact, Peak Window.
-- **Visitor forecast chart** — Bell-curve per destination (peak hour shifts per city based on a place-name hash, ±1.5h variance).
-- **Crowd Hotspots bar chart** — Color-coded by risk tier (red/amber/green). Zone names from Gemini when key is set; falls back to type-based templates otherwise.
-- **Map intelligence** — Leaflet + OpenStreetMap, risk-colored circles for hotspots.
-- **Live Advisories** — Rule-based advisory cards keyed off score, traffic, and top hotspot intensity.
-- **Generate Public Advisory** — Gemini-powered modal that produces a 4-sentence official advisory (gov-only).
-- **News strip** — newsdata.io (when key set). Color-coded source badges per provider.
+- Place search with Fuse.js over curated Indian destinations, plus Nominatim/OSM geocoding fallback for any query not in the curated list.
+- Hero card with Destination Health Score, risk badge, recommendation, and current situation.
+- Risk legend: `Healthy >= 75`, `Caution 50-74`, `Risky < 50`.
+- Live weather panel using Open-Meteo (no key needed).
+- Visitor forecast chart (hourly, 8 AM–8 PM) and crowd hotspot bar chart.
+- Crowd Hotspots chart title updates to include the selected location name.
+- Map intelligence using Leaflet + OpenStreetMap with risk-colored hotspot markers.
+- Live advisory timeline generated from synthetic signals.
+- News strip using newsdata.io when a key is present.
+- Data Sources panel (click the (i) button in the topbar) with live/pending/synthetic status per signal.
+- Hover tooltips on every stat card, chart, and section explain what each signal is and where it comes from.
 
-### UX polish
-- **Role switcher** — Government / Institution (full dashboard + advisory button) vs Public View (hides advisory, shows visitor tip in plain language).
-- **Dark mode** — Moon/sun toggle in topbar, preference saved to `localStorage`.
-- **Data Sources panel** — (i) button in topbar opens a panel showing which APIs are Live / Add-key / Synthetic.
-- **Hover tooltips** — Tiny (i) badges on every metric explaining where the number comes from.
-- **Responsive layout** — Tablet (2-row topbar), mobile (single column, icon-only role buttons on tiny screens).
-- **Sticky topbar** — Blurred backdrop, brand logo with gradient pin mark.
+### Gemini features
+- Gemini-powered one-sentence recommendation for the operations team.
+- Gemini-powered hotspot zone naming (replaces generic zone templates per destination).
+- Gemini-powered public advisory generation via modal.
+- Model fallback: tries `gemini-2.5-flash` then `gemini-2.0-flash` automatically.
+- Surfaces real API error messages instead of a generic fallback string.
+- Advisory generation retries once with a stricter prompt if Gemini returns an incomplete paragraph.
 
-### Real data (no key needed)
-- Open-Meteo — weather
-- Nager.Date — Indian public holidays
-- Nominatim / OSM — geocoding fallback
-- OpenStreetMap — map tiles
+### Advisory workflow
+- Published public advisory is shown directly on the dashboard for all users.
+- Public users can request an advisory (queued for government review).
+- Government users can generate and publish directly from the modal.
+- Government users see a pending queue with approve/reject actions.
+- Advisory timeline is ordered newest to oldest with timestamps and relative time labels.
+- Older synthetic advisories have staggered synthetic timestamps so the timeline reads like a real feed.
+- Advisory content area is scrollable.
+- Advisory storage uses browser `localStorage` (see "Advisory storage" below).
 
-### Real data (needs free key in `config.js`)
-- Gemini API — AI advisories + AI hotspot zone names
-- newsdata.io — recent local news (200 free calls/day)
-
----
-
-## What's pending / Phase 2
-
-### v1 polish
-- **Loading states** — Currently shimmer skeletons; would be nice to show "Fetching weather…" etc. as plain text on slower connections.
-- **Error states** — If Open-Meteo or Nominatim fails, fall back gracefully with a banner.
-- **Mobile map zoom controls** — Sometimes feel cramped under the wrapped topbar.
-- **Better empty news state** — Currently shows nothing — could suggest similar destinations.
-
-### Real crowd data (the big one)
-v1 synthesizes visitor counts because there's no free real-time API for them. Documented upgrade path:
-
-| Tier | Source | Effort |
-|---|---|---|
-| 1 | BestTime.app API ($50–200/mo) | swap one file in `js/api/crowd.js` |
-| 2 | Google Routes API (traffic as crowd proxy) | requires billing-enabled GCP |
-| 3 | Partnership with ticket-issuance systems (TTD, ASI) | pilot agreement |
-| 4 | CCTV + edge ML headcount (NVIDIA Metropolis, YOLOv8) | hardware + ops |
-| 5 | Aggregated telco cell-tower density | enterprise contract |
-
-All `js/api/*.js` modules return a normalized shape — swapping the synthetic source for any real source is a one-file change.
-
-### Stretch goals
-- **Auth + saved destinations** for tourism boards
-- **SMS / WhatsApp advisory broadcast** — Twilio integration
-- **Historical replay** — slider to see how the score moved across past days
-- **Multi-language** — Hindi, Tamil, Telugu for public view
-
----
-
-## How to deploy to Vercel
-
-Yes, Vercel works great — TourSensi is pure static (HTML/CSS/JS, no server). Two ways:
-
-### Option A — Connect the GitHub repo (recommended)
-
-1. Go to https://vercel.com and sign in with GitHub.
-2. Click **Add New → Project**.
-3. Import `navyansh1/TourSensi-Ganit`.
-4. **Framework Preset:** "Other" (no build needed).
-5. **Build Command:** *leave empty.*
-6. **Output Directory:** *leave empty (Vercel will serve the root).*
-7. **Environment Variables:** None needed (keys live in `config.js` which is **gitignored**, so it won't be in the repo). See "Key safety on Vercel" below.
-8. Click **Deploy**.
-
-Every push to `main` will auto-redeploy. PRs get their own preview URLs.
-
-### Option B — One-time CLI deploy
-
-```bash
-npm i -g vercel
-cd TourSensi-Ganit
-vercel              # follow prompts; pick "Other" as framework
-vercel --prod       # promote to production
-```
-
-### Key safety on Vercel
-
-Because `config.js` is gitignored, the deployed site will have **empty keys** → Gemini advisories and news will silently no-op (the app still runs, just with synthetic recommendations).
-
-**Two options to fix this:**
-
-1. **Quick & dirty (demo only):** Locally rename `config.js` → `config.public.js`, commit it, deploy. Keys will be visible in the browser. *Only acceptable if you've restricted the keys in Google AI Studio + newsdata.io to the Vercel domain.*
-
-2. **Proper (recommended past demo):** Move key-using calls to a Vercel **Serverless Function** (`/api/gemini.js`) that holds the keys in Vercel Environment Variables. Frontend calls `/api/gemini` instead of Google directly. ~20-line change.
-
-Before deploying, always:
-- Restrict the Gemini key in Google AI Studio → HTTP referrers → add your Vercel domain.
-- Rotate any key that's been pasted into chat, Slack, screenshots, or emails.
+### UX
+- Government / Public role switcher in the topbar; each role shows different panels.
+- Dark mode toggle with `localStorage` persistence.
+- Responsive layout for tablet and mobile.
+- Sticky topbar with no scroll gap above it.
+- Default page rendering scaled to ~90% on desktop via CSS zoom.
+- Lucide-style inline SVG icons throughout — no emoji.
+- All values in the UI are data-driven; the HTML is a shell with `data-bind` attributes.
 
 ---
 
 ## File layout
 
-```
+```text
 toursensi/
-├── index.html              # shell — no hardcoded values, JS populates everything
-├── style.css               # full design system, dark mode, responsive
-├── config.example.js       # committed template — teammates copy to config.js
-├── config.js               # YOUR keys (gitignored, never commit)
+├── index.html
+├── style.css
+├── config.example.js
+├── config.js              # not gitignored; fill in keys here
 ├── data/
-│   └── india-places.json   # ~100 curated destinations for fuzzy search
+│   └── india-places.json  # curated destination list for Fuse.js search
 ├── js/
-│   ├── main.js             # boot + orchestration
-│   ├── state.js            # single source of truth, subscribe/setState
-│   ├── ui.js               # data-bind renderer, news/weather/advisory render
-│   ├── charts.js           # Chart.js — forecast line, hotspots bar
-│   ├── map.js              # Leaflet — risk-colored hotspot circles
-│   ├── search.js           # Fuse.js + Nominatim fallback
-│   ├── role.js             # gov / public view switcher
-│   ├── tooltip.js          # hover (i) badges + Data Sources panel
-│   ├── icons.js            # Lucide-style inline SVGs
+│   ├── advisory-store.js  # localStorage advisory workflow (load/save/approve/reject)
+│   ├── main.js            # boot + orchestration
+│   ├── state.js           # single source of truth; setState + subscribe
+│   ├── ui.js              # data-bind renderer, advisory/news/weather renderers
+│   ├── charts.js          # Chart.js wiring (forecast line + hotspots bar)
+│   ├── map.js             # Leaflet map init + hotspot markers
+│   ├── search.js          # Fuse.js search + Nominatim fallback
+│   ├── role.js            # gov/public role switcher
+│   ├── tooltip.js         # hover tooltips + Data Sources panel
+│   ├── icons.js           # inline SVG icon injector (data-icon attribute)
 │   ├── api/
-│   │   ├── weather.js      # Open-Meteo
-│   │   ├── holidays.js     # Nager.Date
-│   │   ├── news.js         # newsdata.io
-│   │   └── gemini.js       # Gemini — advisories + hotspot names
+│   │   ├── weather.js     # Open-Meteo fetch
+│   │   ├── holidays.js    # Nager.Date fetch
+│   │   ├── news.js        # newsdata.io / GNews / NYT fetch
+│   │   ├── geocode.js     # Nominatim geocoding (India-biased + global fallback)
+│   │   └── gemini.js      # Gemini API with model fallback + prompt builders
 │   └── model/
-│       └── crowd-score.js  # transparent synthetic crowd model
+│       └── crowd-score.js # synthetic crowd model (weather + holidays + day/hour)
 └── README.md
+```
+
+---
+
+## Real data sources
+
+### No key needed
+- Open-Meteo — weather (temperature, humidity, wind, UV, precip, sunrise/sunset)
+- Nager.Date — Indian public holidays
+- Nominatim / OSM — geocoding fallback for destinations not in the curated list
+- OpenStreetMap — map tiles
+
+### Optional keys (free tiers)
+- Gemini API — AI advisories, hotspot naming, recommendation enhancement
+- newsdata.io — recent local news (200 req/day free)
+- GNews — news fallback (100 calls/day free)
+- NYT — news fallback (free)
+
+---
+
+## Advisory storage
+
+The advisory workflow uses browser `localStorage` under the key `toursensi_advisory_workflow_v1`.
+
+That means:
+- Works well for demos and same-browser testing.
+- Not shared across different devices, browsers, or users.
+- Pending approvals and published advisories are local to that browser.
+
+Current storage module: `js/advisory-store.js`
+
+If you want shared moderation later, the simplest upgrade is:
+- Vercel for hosting
+- one Vercel serverless Gemini proxy route
+- Supabase for `pending_advisories` and `published_advisories`
+
+---
+
+## What is still pending
+
+### v1 polish
+- Better loading/error banners for slow or failing APIs
+- Better empty news state
+- Mobile map control polish
+
+### Recommended next technical step
+- Move Gemini calls behind a small server-side proxy before sharing the app broadly
+
+### Future upgrades
+- Shared auth and destination saving
+- SMS / WhatsApp advisory broadcast
+- Historical replay
+- Multi-language support
+- Real shared advisory database (replace localStorage)
+
+---
+
+## Deployment recommendation
+
+### Best option: Vercel
+
+Vercel is the recommended deployment target for this app.
+
+Why:
+- Works great for the current no-build static frontend
+- Can later add serverless API routes without changing the frontend stack
+- Easiest path for hiding Gemini keys properly
+
+### GitHub Pages vs Vercel
+
+- GitHub Pages: only suitable for a fully static demo with no secrets and no shared advisory backend
+- Vercel: better for real sharing because it supports static hosting now and serverless routes later
+
+Recommendation: use **Vercel**, not GitHub Pages, if you plan to share with seniors.
+
+---
+
+## Key safety
+
+Do not rely on a hardcoded Gemini key in browser code for a real deployment.
+
+If the key is in `config.js` and shipped to the client:
+- users can inspect it
+- others can reuse it
+- you may need to rotate it after demos
+
+### Safer options
+
+1. Demo-only approach
+   Use `config.js` with a restricted Gemini key (restrict to your Vercel domain in Google AI Studio) and rotate it after the demo.
+
+2. Recommended approach
+   Move Gemini calls to a Vercel serverless function such as `/api/gemini.js` and store the key in Vercel Environment Variables.
+
+3. Recommended shared workflow setup
+   Keep the frontend static, add a Vercel Gemini proxy, and store advisory workflow data in Supabase.
+
+Before deploying:
+- Restrict the Gemini key in Google AI Studio to your allowed referrers/domains
+- Rotate any key that has been pasted into chats, screenshots, or emails
+
+---
+
+## How to deploy to Vercel
+
+### Option A - connect the GitHub repo
+
+1. Go to https://vercel.com and sign in with GitHub.
+2. Click **Add New -> Project**.
+3. Import `navyansh1/TourSensi-Ganit`.
+4. Framework preset: **Other**
+5. Build command: leave empty
+6. Output directory: leave empty
+7. Add environment variables later if you move Gemini server-side
+8. Click **Deploy**
+
+### Option B - CLI
+
+```bash
+npm i -g vercel
+cd TourSensi-Ganit
+vercel
+vercel --prod
 ```
 
 ---
 
 ## Conventions
 
-- **No emoji in the UI** — all glyphs are inline Lucide SVGs from `js/icons.js`. To add an icon, copy its SVG path into the `ICONS` map there and use `data-icon="name"` in HTML.
-- **No purple/violet accents** — palette is sky-blue (#0ea5e9) + amber/emerald/red for risk levels. Defined as CSS variables at the top of `style.css`.
-- **No hardcoded data in HTML** — `index.html` is a shell; JS state populates all values via `data-bind` attributes.
-- **No build step** — please don't add React/Vue/webpack/vite. Vanilla ES modules + CDN libraries only.
+- No emoji in the UI — inline SVG icons only
+- No purple/violet accents — sky-blue + amber + emerald palette
+- No hardcoded data in HTML — all values populated by JS state bindings
+- No build step
+- Keep the stack simple first
+- Use `localStorage` for advisory workflow until cross-device sharing is actually needed
 
 ---
 
 ## Questions or stuck?
 
-- Ping Navyansh on the team channel.
-- For bugs, open a GitHub Issue — describe what you tried, what you expected, what you saw, browser + OS.
-- Don't push directly to `main`; always go through a PR.
+- Ping Navyansh on the team channel
+- Open a GitHub Issue with browser, OS, expected behavior, and actual behavior
+- Don't push directly to `main`; always use a PR

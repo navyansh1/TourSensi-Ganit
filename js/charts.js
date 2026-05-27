@@ -81,9 +81,14 @@ function fmtHour(h) {
 export function initCharts() {
   const forecastEl = document.getElementById('forecastChart');
   const hotspotsEl = document.getElementById('hotspotsChart');
+  const hotspotsTitleEl = document.getElementById('hotspotsTitle');
   if (!forecastEl || !hotspotsEl || typeof Chart === 'undefined') return;
 
   subscribe((state) => {
+    if (hotspotsTitleEl) {
+      const placeLabel = state.place?.label ? ` - ${state.place.label}` : '';
+      hotspotsTitleEl.textContent = `Crowd Hotspots${placeLabel}`;
+    }
     if (state.forecast?.hours?.length) {
       const c = ensureForecast(forecastEl);
       c.data.labels = state.forecast.hours.map(fmtHour);

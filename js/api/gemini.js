@@ -1,13 +1,18 @@
 // Gemini API — direct fetch from browser. Key is per-domain restricted in Google AI Studio
 // to prevent reuse if scraped. No-op (returns null) if key missing — caller falls back to synthetic.
 
-const ENDPOINT = (model, key) =>
-  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+const ENDPOINT = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
 
-export async function generate({ apiKey, model = DEFAULT_MODEL, prompt, system, temperature = 0.7, maxTokens = 512 }) {
-  if (!apiKey) return null;
+export async function generate(opts) {
+  const result = await generateDetailed(opts);
+  return result.text;
+}
+
+export async function generateDetailed({ apiKey, model = DEFAULT_MODEL, prompt, system, temperature = 0.7, maxTokens = 512 }) {
+  if (!apiKey) return { text: null, error: 'Missing Gemini API key.', modelTried: null, status: null };
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -17,24 +22,58 @@ export async function generate({ apiKey, model = DEFAULT_MODEL, prompt, system, 
     body.systemInstruction = { parts: [{ text: system }] };
   }
 
-  let res;
+  const modelsToTry = [...new Set([model, ...MODEL_FALLBACKS].filter(Boolean))];
+  let lastError = 'Gemini request failed.';
+  let lastStatus = null;
+  let lastModel = modelsToTry[0] || null;
+
+  for (const modelName of modelsToTry) {
+    let res;
+    try {
+      res = await fetch(ENDPOINT(modelName), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      lastError = `Network error while contacting Gemini: ${e?.message || 'unknown error'}`;
+      lastStatus = null;
+      lastModel = modelName;
+      console.warn('[gemini] network error', modelName, e);
+      continue;
+    }
+    if (!res.ok) {
+      const raw = await safeText(res);
+      lastError = parseErrorMessage(raw) || `Gemini returned HTTP ${res.status}.`;
+      lastStatus = res.status;
+      lastModel = modelName;
+      console.warn('[gemini] non-OK', modelName, res.status, raw);
+      continue;
+    }
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n').trim();
+    if (text) return { text, error: null, modelTried: modelName, status: res.status };
+
+    lastError = 'Gemini returned an empty response.';
+    lastStatus = res.status;
+    lastModel = modelName;
+  }
+
+  return { text: null, error: lastError, modelTried: lastModel, status: lastStatus };
+}
+
+function parseErrorMessage(raw) {
+  if (!raw) return '';
   try {
-    res = await fetch(ENDPOINT(model, apiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch (e) {
-    console.warn('[gemini] network error', e);
-    return null;
+    const data = JSON.parse(raw);
+    const message = data?.error?.message || data?.message;
+    return message ? String(message) : raw;
+  } catch {
+    return raw;
   }
-  if (!res.ok) {
-    console.warn('[gemini] non-OK', res.status, await safeText(res));
-    return null;
-  }
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n').trim();
-  return text || null;
 }
 
 async function safeText(res) { try { return await res.text(); } catch { return ''; } }

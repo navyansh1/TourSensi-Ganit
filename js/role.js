@@ -2,6 +2,7 @@
 // Public view hides the advisory generator and shows visitor-friendly tips instead.
 
 import { state } from './state.js';
+import { injectIcons } from './icons.js';
 
 let currentRole = 'gov';
 
@@ -21,6 +22,7 @@ export function getRole() { return currentRole; }
 
 function setRole(role) {
   currentRole = role;
+  document.body.dataset.role = role;
 
   // Toggle button active styles
   document.getElementById('roleGov')?.classList.toggle('role-btn--active', role === 'gov');
@@ -29,6 +31,20 @@ function setRole(role) {
   // Show/hide gov-only and public-only elements
   document.querySelectorAll('.gov-only').forEach((el)    => { el.hidden = role !== 'gov'; });
   document.querySelectorAll('.public-only').forEach((el) => { el.hidden = role !== 'public'; });
+
+  const title = document.getElementById('advisoryCardTitle');
+  const sub = document.getElementById('advisoryCardSub');
+  if (title) {
+    title.innerHTML = role === 'public'
+      ? '<span data-icon="alert-triangle"></span> Visitor Advisory'
+      : '<span data-icon="alert-triangle"></span> Advisory Center';
+    injectIcons(title);
+  }
+  if (sub) {
+    sub.textContent = role === 'public'
+      ? 'A simple view of what visitors need to know right now.'
+      : 'Generate, review, publish, and track advisories in one place.';
+  }
 
   // Update the public tip body with current destination info
   if (role === 'public') updatePublicTip();
