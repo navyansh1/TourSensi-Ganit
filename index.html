@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TourSensi — Destination Intelligence Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page">
+
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="TourSensi home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">TourSensi</span>
+          <span class="brand-tag">Measure · Predict · Conquer</span>
+        </span>
+      </a>
+
+      <div class="topbar-spacer"></div>
+
+      <!-- Role switcher -->
+      <div class="role-switcher" id="roleSwitcher" role="group" aria-label="View mode">
+        <button class="role-btn role-btn--active" id="roleGov" data-role="gov">
+          <span data-icon="shield"></span> Government
+        </button>
+        <button class="role-btn" id="rolePublic" data-role="public">
+          <span data-icon="users"></span> Public
+        </button>
+      </div>
+
+      <div class="search-wrap" id="searchWrap">
+        <label for="placeSearch" class="visually-hidden">Search destination</label>
+        <span class="search-icon" data-icon="map-pin"></span>
+        <input
+          id="placeSearch"
+          class="search-input"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="Search any destination…"
+        />
+        <span class="search-caret" data-icon="chevron-down"></span>
+        <div id="searchDropdown" class="search-dropdown" hidden></div>
+      </div>
+
+      <div class="topbar-actions">
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" type="button">
+          <span id="themeIcon" data-icon="moon"></span>
+        </button>
+      </div>
+    </header>
+
+    <section class="page-head">
+      <h1 class="page-title">Destination Intelligence Command Center</h1>
+      <ul class="page-sub gov-only page-sub-list">
+        <li>Predict crowd surges, traffic and weather risk before they hit.</li>
+        <li>Issue advisories and pre-position teams for emergency readiness.</li>
+      </ul>
+      <ul class="page-sub public-only page-sub-list" hidden>
+        <li>See live crowd, weather and best-visit windows for any destination.</li>
+        <li>Plan around peak hours — avoid queues and busy zones.</li>
+      </ul>
+    </section>
+
+    <section class="hero-card" id="heroCard">
+      <div class="hero-left">
+        <div class="hero-location">
+          <span data-icon="map-pin" class="hero-loc-icon"></span>
+          <span data-bind="place.label"></span>
+        </div>
+
+        <div class="hero-score-label">Destination Health Score</div>
+        <div class="hero-score-row">
+          <div id="heroScore" class="hero-score" data-bind="score.value"></div>
+          <div class="hero-score-right">
+            <div id="riskBadge" class="risk-badge" data-bind-class="risk.badgeClass">
+              <span data-icon="alert-triangle"></span>
+              <span data-bind="risk.label"></span>
+            </div>
+            <div class="risk-legend">Low &ge; 75 &middot; Moderate 50&ndash;74 &middot; High &lt; 50</div>
+          </div>
+        </div>
+
+        <p id="heroRecommendation" class="hero-recommendation" data-bind="recommendation"></p>
+      </div>
+
+      <div class="hero-right">
+        <div class="hero-right-title">Current Situation</div>
+        <ul class="situation-list">
+          <li id="ctxEvent"><span class="situation-key">Event Context</span><span class="situation-val" data-bind="situation.event"></span></li>
+          <li id="ctxTraffic"><span class="situation-key">Traffic</span><span class="situation-val" data-bind="situation.traffic"></span></li>
+          <li id="ctxWeather"><span class="situation-key">Weather</span><span class="situation-val" data-bind="situation.weather"></span></li>
+          <li id="ctxInflow"><span class="situation-key">Forecast Inflow</span><span class="situation-val" data-bind="situation.inflow"></span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Live weather detail panel -->
+    <section class="card weather-panel" id="weatherPanel">
+      <header class="card-head">
+        <div class="weather-panel-title">
+          <span id="weatherIcon" class="weather-icon-big"></span>
+          <div>
+            <h2 class="card-title">Live Weather</h2>
+            <p class="card-sub">Open-Meteo · updated on page load · no API key required</p>
+          </div>
+        </div>
+        <div class="weather-temp-hero">
+          <span id="weatherTempHero" class="temp-hero-val">—</span>
+          <span class="temp-hero-unit">°C</span>
+          <span id="weatherFeels" class="temp-feels">feels like <span>—</span>°C</span>
+        </div>
+      </header>
+      <div class="weather-grid" id="weatherGrid">
+        <div class="wx-cell"><span class="wx-label">Condition</span><span class="wx-val" id="wxCondition">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Humidity</span><span class="wx-val" id="wxHumidity">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Wind</span><span class="wx-val" id="wxWind">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Precipitation</span><span class="wx-val" id="wxPrecip">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Cloud Cover</span><span class="wx-val" id="wxCloud">—</span></div>
+        <div class="wx-cell"><span class="wx-label">UV Index</span><span class="wx-val" id="wxUV">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Visibility</span><span class="wx-val" id="wxVis">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Today High / Low</span><span class="wx-val" id="wxHighLow">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Daily Rain</span><span class="wx-val" id="wxRainDay">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Sunrise / Sunset</span><span class="wx-val" id="wxSun">—</span></div>
+      </div>
+    </section>
+
+    <section class="stats-row">
+      <article class="stat-card">
+        <span class="stat-icon" data-icon="users"></span>
+        <div class="stat-label">Visitors Today</div>
+        <div class="stat-value" data-bind="stats.visitors"></div>
+        <div class="stat-delta up" data-bind="stats.visitorsDelta"></div>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-icon" data-icon="activity"></span>
+        <div class="stat-label">Crowd Risk</div>
+        <div class="stat-value sm" data-bind="stats.crowdRisk"></div>
+        <div class="stat-sub">Live + predicted</div>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-icon" data-icon="car"></span>
+        <div class="stat-label">Traffic State</div>
+        <div class="stat-value sm" data-bind="stats.traffic"></div>
+        <div class="stat-sub">Vehicle inflow</div>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-icon" data-icon="cloud"></span>
+        <div class="stat-label">Weather Impact</div>
+        <div class="stat-value sm" data-bind="stats.weather"></div>
+        <div class="stat-sub" data-bind="stats.weatherSub"></div>
+      </article>
+
+      <article class="stat-card">
+        <span class="stat-icon" data-icon="clock"></span>
+        <div class="stat-label">Peak Window</div>
+        <div class="stat-value sm" data-bind="stats.peak"></div>
+        <div class="stat-sub">Highest risk</div>
+      </article>
+    </section>
+
+    <section class="charts-row">
+      <article class="card chart-card chart-card--wide">
+        <header class="card-head">
+          <div>
+            <h2 class="card-title">Visitor Forecast &amp; Risk Trend</h2>
+            <p class="card-sub">Forecast using ticket sales, holidays, day/time, weather and historical patterns.</p>
+          </div>
+          <span class="pill" id="dataSourcePill">Synthetic Data</span>
+        </header>
+        <div class="chart-canvas-wrap">
+          <canvas id="forecastChart" height="220"></canvas>
+        </div>
+      </article>
+
+      <article class="card chart-card">
+        <header class="card-head">
+          <div>
+            <h2 class="card-title">Crowd Hotspots</h2>
+            <p class="card-sub">Zone-level crowd intensity.</p>
+          </div>
+        </header>
+        <div class="chart-canvas-wrap">
+          <canvas id="hotspotsChart" height="220"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="map-row">
+      <article class="card map-card">
+        <header class="card-head">
+          <div>
+            <h2 class="card-title">Map Intelligence</h2>
+            <p class="card-sub">Risk-colored hotspots, parking pressure and emergency movement paths.</p>
+          </div>
+        </header>
+        <div id="map" class="map-canvas"></div>
+        <div class="map-legend">
+          <span class="legend-item"><span class="legend-dot legend-high"></span>High</span>
+          <span class="legend-item"><span class="legend-dot legend-mod"></span>Moderate</span>
+          <span class="legend-item"><span class="legend-dot legend-low"></span>Low</span>
+        </div>
+      </article>
+
+      <article class="card advisories-card">
+        <header class="card-head">
+          <div>
+            <h2 class="card-title"><span data-icon="alert-triangle"></span> Live Advisories</h2>
+            <p class="card-sub">Auto-generated from current signals.</p>
+          </div>
+        </header>
+
+        <ul class="advisory-list" id="advisoryList"></ul>
+
+        <!-- Gov mode: full advisory button -->
+        <button class="btn btn-primary gov-only" id="generateAdvisoryBtn" type="button">
+          <span data-icon="bell"></span>
+          Generate Public Advisory
+        </button>
+        <!-- Public mode: visitor tip instead -->
+        <div class="public-only public-tip" id="publicTip" hidden>
+          <span data-icon="bell"></span>
+          <div>
+            <div class="public-tip-title">Plan your visit</div>
+            <div class="public-tip-body" id="publicTipBody">Select a destination to see crowd conditions and the best time to visit.</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="news-row" id="newsRow">
+      <div class="news-head">
+        <h2 class="card-title">Local Signals</h2>
+        <span class="card-sub">Recent news mentioning this destination.</span>
+      </div>
+      <div class="news-grid" id="newsGrid"></div>
+    </section>
+
+    <section class="capabilities-row">
+      <h2 class="card-title capabilities-title">What Intelligence Can TourSensi Provide?</h2>
+      <div class="capabilities-grid">
+        <article class="cap-card">
+          <span class="cap-icon" data-icon="trending-up"></span>
+          <h3>Visitor Surge Prediction</h3>
+          <p>Forecast peak hours and crowd intensity using day, holidays, weather, and history.</p>
+        </article>
+        <article class="cap-card">
+          <span class="cap-icon" data-icon="car"></span>
+          <h3>Vehicle Inflow Risk</h3>
+          <p>Detect high inflow corridors and parking saturation before peak window.</p>
+        </article>
+        <article class="cap-card">
+          <span class="cap-icon" data-icon="map-pin"></span>
+          <h3>Destination Popularity</h3>
+          <p>See which zones draw highest afternoon demand based on past visitor patterns.</p>
+        </article>
+        <article class="cap-card">
+          <span class="cap-icon" data-icon="shield"></span>
+          <h3>Emergency Readiness</h3>
+          <p>Recommend safest exit gates, dispersal corridors and medical staging points.</p>
+        </article>
+        <article class="cap-card">
+          <span class="cap-icon" data-icon="bell"></span>
+          <h3>Operational Recommendation</h3>
+          <p>Deploy staff, activate alternate routes and issue public advisories on time.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span data-bind="footer.label"></span>
+    </footer>
+  </main>
+
+  <div class="modal" id="advisoryModal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="advisoryModalTitle">
+      <header class="modal-head">
+        <h3 id="advisoryModalTitle">Public Advisory</h3>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">
+          <span data-icon="x"></span>
+        </button>
+      </header>
+      <div class="modal-body" id="advisoryModalBody">
+        <p class="muted">Generating advisory…</p>
+      </div>
+      <footer class="modal-foot">
+        <button class="btn btn-ghost" type="button" id="copyAdvisoryBtn">Copy</button>
+        <button class="btn btn-primary" type="button" id="regenerateAdvisoryBtn">Regenerate</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

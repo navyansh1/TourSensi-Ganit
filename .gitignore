@@ -1,0 +1,11 @@
+config.js
+.DS_Store
+.vercel
+node_modules/
+.env
+.env.*
+*.log
+.claude/
+.idea/
+.vscode/
+Thumbs.db
