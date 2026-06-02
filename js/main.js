@@ -11,6 +11,7 @@ import { getRole, initRole, updatePublicTip } from './role.js';
 import { fetchWeather } from './api/weather.js';
 import { fetchTodayHoliday } from './api/holidays.js';
 import { fetchNews } from './api/news.js';
+import { fetchWikiSummary } from './api/wikipedia.js';
 import { generate, generateDetailed, recommendationPrompt, publicAdvisoryPrompt, hotspotsPrompt } from './api/gemini.js';
 import { computeIntelligence } from './model/crowd-score.js';
 import { injectIcons } from './icons.js';
@@ -43,11 +44,15 @@ async function selectPlace(place) {
     advisories: [],
     news: [],
     _newsLoaded: false,
+    wiki: { extract: '', image: null, description: '' },
+    aqi: null,
   });
 
-  const [weather, holiday] = await Promise.all([
+  // Fetch weather, holidays, and Wikipedia summary in parallel
+  const [weather, holiday, wiki] = await Promise.all([
     fetchWeather(place.lat, place.lon),
     fetchTodayHoliday(),
+    fetchWikiSummary(place.name),
   ]);
 
   const model = computeIntelligence({
@@ -71,6 +76,7 @@ async function selectPlace(place) {
     forecast: model.forecast,
     hotspots: model.hotspots,
     advisories: model.advisories,
+    wiki: wiki || { extract: '', image: null, description: '' },
   });
 
   updatePublicTip();
@@ -86,6 +92,7 @@ async function loadNews(place) {
     gnewsKey: CONFIG.GNEWS_API_KEY,
     nytKey: CONFIG.NYT_API_KEY,
     query: place.name,
+    fallbackQuery: place.state ? `${place.state} tourism` : undefined,
     country: place.country?.toLowerCase() === 'india' ? 'in' : undefined,
     max: 6,
   });
@@ -147,6 +154,14 @@ async function enhanceHotspots(place, model) {
     intensity: existingHotspots[i]?.intensity ?? 50,
   }));
   setState({ hotspots: merged });
+}
+
+function generateFallbackPublicAdvisory(ctx) {
+  const hotspotsStr = ctx.hotspots && ctx.hotspots.length 
+    ? `near the main zones (${ctx.hotspots.slice(0, 2).map(h => h.split(' (')[0]).join(' and ')})` 
+    : 'in the main sightseeing areas';
+    
+  return `Visitor advisory for ${ctx.placeLabel}. The current safety score is assessed at ${ctx.score}/100 with a ${ctx.risk.toLowerCase()} status. Under the current ${ctx.weather.toLowerCase()} weather conditions, we expect traffic flow to remain ${ctx.traffic.toLowerCase()}. Peak visitor hours are projected around ${ctx.peak}, which may lead to crowd buildup ${hotspotsStr}. Visitors are advised to plan arrival during off-peak hours and follow all safety signs. Security and guidance staff are deployed across the destination to assist you.`;
 }
 
 function isCompleteAdvisory(text) {
@@ -256,11 +271,6 @@ function wireAdvisoryModal() {
       setLoading(false);
       return;
     }
-    if (!CONFIG.GEMINI_API_KEY) {
-      body.innerHTML = `<p>${escapeHtml(model.recommendation)}</p><p class="muted">Add a Gemini API key in config.js to generate a richer public advisory.</p>`;
-      setLoading(false);
-      return;
-    }
 
     const ctx = {
       placeLabel: place.label,
@@ -272,16 +282,31 @@ function wireAdvisoryModal() {
       peak: model.stats.peak,
       traffic: model.stats.traffic,
     };
-    const result = await generatePublicAdvisory(ctx);
-    if (!result.text) {
-      const reason = escapeHtml(result.error || 'Gemini request failed.');
-      body.innerHTML = `<p>${escapeHtml(model.recommendation)}</p><p class="muted">${reason}</p>`;
-      setLoading(false);
-      return;
+
+    let advisoryText = '';
+    let isSyntheticFallback = false;
+
+    if (CONFIG.GEMINI_API_KEY) {
+      const result = await generatePublicAdvisory(ctx);
+      if (result.text && isCompleteAdvisory(result.text)) {
+        advisoryText = result.text;
+      } else {
+        console.warn('Gemini advisory incomplete or rate-limited. Falling back to template.', result.error);
+        advisoryText = generateFallbackPublicAdvisory(ctx);
+        isSyntheticFallback = true;
+      }
+    } else {
+      advisoryText = generateFallbackPublicAdvisory(ctx);
+      isSyntheticFallback = true;
     }
 
-    modalDraft = buildAdvisoryDraft(result.text);
-    body.innerHTML = result.text.split(/\n+/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    modalDraft = buildAdvisoryDraft(advisoryText);
+    
+    let html = advisoryText.split(/\n+/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    if (isSyntheticFallback) {
+      html += `<p class="muted" style="font-size:11px;margin-top:12px;border-top:1px dashed var(--border);padding-top:8px">ℹ️ Generated using safety rules (Gemini API unavailable or rate-limited).</p>`;
+    }
+    body.innerHTML = html;
     setLoading(false);
   }
 
@@ -356,6 +381,41 @@ function wireThemeToggle() {
   }
 }
 
+function wireChartToggle() {
+  const toggleCrowd = document.getElementById('toggleCrowd');
+  const toggleWeather = document.getElementById('toggleWeather');
+  const forecastTitle = document.getElementById('forecastTitle');
+  const forecastSub = document.getElementById('forecastSub');
+  const dataSourcePill = document.getElementById('dataSourcePill');
+  if (!toggleCrowd || !toggleWeather) return;
+
+  toggleCrowd.addEventListener('click', () => {
+    toggleCrowd.classList.add('toggle-btn--active');
+    toggleWeather.classList.remove('toggle-btn--active');
+    if (forecastTitle) forecastTitle.textContent = 'Visitor Forecast & Risk Trend';
+    if (forecastSub) forecastSub.textContent = 'Forecast using ticket sales, holidays, day/time, weather and historical patterns.';
+    if (dataSourcePill) {
+      dataSourcePill.textContent = 'Synthetic Data';
+      dataSourcePill.style.background = '#f1f5f9';
+      dataSourcePill.style.color = 'var(--text-muted)';
+    }
+    setState({ forecastMode: 'crowd' });
+  });
+
+  toggleWeather.addEventListener('click', () => {
+    toggleWeather.classList.add('toggle-btn--active');
+    toggleCrowd.classList.remove('toggle-btn--active');
+    if (forecastTitle) forecastTitle.textContent = 'Weather & Precipitation Forecast';
+    if (forecastSub) forecastSub.textContent = 'Live hourly temperature and rain probability forecast from Open-Meteo API.';
+    if (dataSourcePill) {
+      dataSourcePill.textContent = 'Live Data';
+      dataSourcePill.style.background = '#e0f2fe';
+      dataSourcePill.style.color = '#0369a1';
+    }
+    setState({ forecastMode: 'weather' });
+  });
+}
+
 async function boot() {
   wireThemeToggle();
   syncAdvisoryWorkflow();
@@ -365,6 +425,7 @@ async function boot() {
   initRole();
   wireAdvisoryModal();
   wirePendingAdvisoryActions();
+  wireChartToggle();
   await initSearch({
     onSelect: selectPlace,
     defaultPlace: CONFIG.DEFAULT_PLACE || 'Kodaikanal',

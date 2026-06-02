@@ -76,14 +76,14 @@ Avoid casually committing `config.js` if it contains real keys.
 
 ### Core dashboard
 - Place search with Fuse.js over curated Indian destinations, plus Nominatim/OSM geocoding fallback for any query not in the curated list.
-- Hero card with Destination Health Score, risk badge, recommendation, and current situation.
+- Hero card with Destination Health Score, risk badge, recommendation, and current situation. Shows a beautiful **Wikipedia Cover Photo** of the destination with glassmorphism gradient overlay when available.
+- **Quick Facts Card** displays a factual summary of the chosen destination fetched dynamically from Wikipedia REST API.
 - Risk legend: `Healthy >= 75`, `Caution 50-74`, `Risky < 50`.
-- Live weather panel using Open-Meteo (no key needed).
-- Visitor forecast chart (hourly, 8 AM–8 PM) and crowd hotspot bar chart.
-- Crowd Hotspots chart title updates to include the selected location name.
+- Live weather panel using Open-Meteo, now including **Air Quality Index (AQI)** and **PM2.5 / PM10** measurements. Shows clear warning labels if the weather API fails.
+- **Interactive Forecast Chart:** Support for toggling the main trend graph between the **Synthetic Crowd Forecast** and a **Real-Time Hourly Weather Forecast** (plotting Temperature and Rain Probability side-by-side).
 - Map intelligence using Leaflet + OpenStreetMap with risk-colored hotspot markers.
-- Live advisory timeline generated from synthetic signals.
-- News strip using newsdata.io when a key is present.
+- Live advisory timeline generated from synthetic signals. Hides internal operational jargon (like staff briefings) in Public mode and labels source as "System Update" for credibility.
+- **Tourism-Focused News & State-Level Fallback:** Fetches real news and filters client-side for tourism-relevant keywords. Automatically falls back to regional state-level tourism news (e.g., `[State] tourism`) for smaller towns with empty local feeds.
 - Data Sources panel (click the (i) button in the topbar) with live/pending/synthetic status per signal.
 - Hover tooltips on every stat card, chart, and section explain what each signal is and where it comes from.
 

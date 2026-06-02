@@ -106,6 +106,20 @@
       </div>
     </section>
 
+    <!-- Quick Facts from Wikipedia -->
+    <section class="card quick-facts-panel" id="quickFactsPanel" hidden>
+      <header class="card-head">
+        <div>
+          <h2 class="card-title">About <span id="quickFactsTitle"></span></h2>
+          <p class="card-sub">Historical and geographical context from Wikipedia</p>
+        </div>
+      </header>
+      <div class="quick-facts-content">
+        <p id="quickFactsExtract"></p>
+        <a id="quickFactsLink" href="#" target="_blank" rel="noopener" class="wiki-link">Read more on Wikipedia &rarr;</a>
+      </div>
+    </section>
+
     <!-- Live weather detail panel -->
     <section class="card weather-panel" id="weatherPanel">
       <header class="card-head">
@@ -133,6 +147,8 @@
         <div class="wx-cell"><span class="wx-label">Today High / Low</span><span class="wx-val" id="wxHighLow">—</span></div>
         <div class="wx-cell"><span class="wx-label">Daily Rain</span><span class="wx-val" id="wxRainDay">—</span></div>
         <div class="wx-cell"><span class="wx-label">Sunrise / Sunset</span><span class="wx-val" id="wxSun">—</span></div>
+        <div class="wx-cell"><span class="wx-label">Air Quality (AQI)</span><span class="wx-val" id="wxAQI">—</span></div>
+        <div class="wx-cell"><span class="wx-label">PM2.5 / PM10</span><span class="wx-val" id="wxPM">—</span></div>
       </div>
     </section>
 
@@ -177,10 +193,16 @@
       <article class="card chart-card chart-card--wide">
         <header class="card-head">
           <div>
-            <h2 class="card-title">Visitor Forecast &amp; Risk Trend</h2>
-            <p class="card-sub">Forecast using ticket sales, holidays, day/time, weather and historical patterns.</p>
+            <h2 class="card-title" id="forecastTitle">Visitor Forecast &amp; Risk Trend</h2>
+            <p class="card-sub" id="forecastSub">Forecast using ticket sales, holidays, day/time, weather and historical patterns.</p>
           </div>
-          <span class="pill" id="dataSourcePill">Synthetic Data</span>
+          <div class="chart-actions">
+            <div class="toggle-group" id="forecastToggleGroup">
+              <button class="toggle-btn toggle-btn--active" id="toggleCrowd" type="button">Crowd</button>
+              <button class="toggle-btn" id="toggleWeather" type="button">Weather</button>
+            </div>
+            <span class="pill" id="dataSourcePill">Synthetic Data</span>
+          </div>
         </header>
         <div class="chart-canvas-wrap">
           <canvas id="forecastChart" height="220"></canvas>

@@ -11,7 +11,23 @@ export const SOURCE_META = {
   nyt:      { label: 'NY Times',    color: '#ef4444' },
 };
 
-export async function fetchNews({ apiKey, gnewsKey, nytKey, query, country = 'in', max = 6 }) {
+const TOURISM_KEYWORDS = [
+  'tourist', 'tourism', 'travel', 'crowd', 'traffic', 'weather', 'rain', 'snow', 'monument', 
+  'temple', 'shrine', 'beach', 'resort', 'visit', 'visitor', 'festival', 'highway', 'route', 
+  'police', 'alert', 'advisory', 'hill', 'station', 'safari', 'park', 'pilgrim', 'devotee',
+  'flight', 'train', 'bus', 'congest', 'closure', 'lockdown', 'avalanche', 'landslide'
+];
+
+function filterTourismNews(articles) {
+  if (!Array.isArray(articles)) return [];
+  return articles.filter(art => {
+    const title = (art.title || '').toLowerCase();
+    const desc = (art.description || '').toLowerCase();
+    return TOURISM_KEYWORDS.some(kw => title.includes(kw) || desc.includes(kw));
+  });
+}
+
+export async function fetchNews({ apiKey, gnewsKey, nytKey, query, fallbackQuery, country = 'in', max = 6 }) {
   if (!query?.trim()) return [];
 
   const fetchers = [];
@@ -19,11 +35,35 @@ export async function fetchNews({ apiKey, gnewsKey, nytKey, query, country = 'in
   if (gnewsKey) fetchers.push(fetchGNews({ gnewsKey, query, country, max }));
   if (nytKey)   fetchers.push(fetchNYT({ nytKey, query, max }));
 
-  if (!fetchers.length) return [];
+  let all = [];
+  if (fetchers.length) {
+    const batches = await Promise.allSettled(fetchers);
+    all = batches.flatMap((b) => b.status === 'fulfilled' ? b.value : []);
+  }
 
-  const batches = await Promise.allSettled(fetchers);
-  const all = batches.flatMap((b) => b.status === 'fulfilled' ? b.value : []);
-  return dedup(all).slice(0, max);
+  // Filter for tourism relevance
+  let filtered = filterTourismNews(dedup(all));
+
+  // If we have fewer than 2 relevant articles, query state-level fallback (e.g. "Goa tourism")
+  if (filtered.length < 2 && fallbackQuery?.trim()) {
+    const fbFetchers = [];
+    if (apiKey)   fbFetchers.push(fetchNewsdataIo({ apiKey, query: fallbackQuery, country, max }));
+    if (gnewsKey) fbFetchers.push(fetchGNews({ gnewsKey, query: fallbackQuery, country, max }));
+    if (nytKey)   fbFetchers.push(fetchNYT({ nytKey, query: fallbackQuery, max }));
+
+    if (fbFetchers.length) {
+      try {
+        const fbBatches = await Promise.allSettled(fbFetchers);
+        const fbAll = fbBatches.flatMap((b) => b.status === 'fulfilled' ? b.value : []);
+        const fbFiltered = filterTourismNews(dedup(fbAll));
+        filtered = dedup([...filtered, ...fbFiltered]);
+      } catch (e) {
+        console.warn('[news] fallback fetch failed', e);
+      }
+    }
+  }
+
+  return filtered.slice(0, max);
 }
 
 async function fetchNewsdataIo({ apiKey, query, country, max }) {

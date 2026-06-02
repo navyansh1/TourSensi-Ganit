@@ -1101,10 +1101,22 @@ body[data-role="public"] .advisories-card {
 body[data-role="public"] .advisory-actions {
   margin-top: 12px;
   background: transparent;
+  display: flex;
+  justify-content: center;
 }
 
 body[data-role="public"] #requestAdvisoryBtn {
-  width: 100%;
+  width: auto;
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+body[data-role="public"] #requestAdvisoryBtn:hover {
+  background: var(--accent-faint) !important;
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 
 body[data-role="public"] .advisory-scroll {
@@ -1277,4 +1289,141 @@ body[data-role="public"] .published-advisory-meta .meta-pill:nth-child(n+3) {
   .role-btn span:not([data-icon]) { display: none; }   /* icon-only role buttons on tiny screens */
   .role-btn { padding: 6px 10px; }
   .stats-row, .capabilities-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== TourSensi Real-Data Enhancements & Visual Polish ===== */
+
+.hero-card {
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.5s ease-in-out;
+}
+
+.hero-card.has-bg::before {
+  background: linear-gradient(135deg, rgba(11, 18, 32, 0.90) 0%, rgba(11, 18, 32, 0.72) 100%) !important;
+  z-index: 1;
+}
+
+.quick-facts-panel {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.quick-facts-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] .quick-facts-content {
+  color: var(--text-on-dark-muted);
+}
+
+.wiki-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  transition: color var(--transition);
+}
+
+.wiki-link:hover {
+  color: var(--accent-strong);
+}
+
+.chart-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toggle-group {
+  display: inline-flex;
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 2px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background var(--transition), color var(--transition);
+}
+
+.toggle-btn.toggle-btn--active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15,23,42,.08);
+}
+
+[data-theme="dark"] .toggle-group {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .toggle-btn.toggle-btn--active {
+  background: #0f172a;
+  color: var(--text-on-dark);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Weather Grid 6 Columns System Overrides */
+@media (min-width: 1081px) {
+  .weather-grid {
+    grid-template-columns: repeat(6, 1fr) !important;
+  }
+  .wx-cell {
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .wx-cell:nth-child(6n) {
+    border-right: none !important;
+  }
+  .wx-cell:nth-last-child(-n+6) {
+    border-bottom: none !important;
+  }
+}
+
+@media (max-width: 1080px) and (min-width: 641px) {
+  .weather-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .wx-cell {
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .wx-cell:nth-child(3n) {
+    border-right: none !important;
+  }
+  .wx-cell:nth-last-child(-n+3) {
+    border-bottom: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .weather-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .wx-cell {
+    border-right: 1px solid var(--border) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .wx-cell:nth-child(2n) {
+    border-right: none !important;
+  }
+  .wx-cell:nth-last-child(-n+2) {
+    border-bottom: none !important;
+  }
 }

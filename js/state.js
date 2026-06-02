@@ -22,6 +22,9 @@ export const state = {
   weather: null,                 // raw weather object
   isHoliday: false,
   holidayName: '',
+  wiki: { extract: '', image: null, description: '' },
+  aqi: null,                     // { usAqi, pm25, pm10, label }
+  forecastMode: 'crowd',         // 'crowd' or 'weather'
   footer: { label: 'TourSensi · v0.1 — synthetic crowd model + real weather/holidays' },
   meta: { lastUpdated: null, source: 'synthetic' },
 };

@@ -4,6 +4,7 @@
 import { state, subscribe } from './state.js';
 import { injectIcons } from './icons.js';
 import { SOURCE_META } from './api/news.js';
+import { getRole } from './role.js';
 
 const SOURCE_COLORS = Object.fromEntries(
   Object.entries(SOURCE_META).map(([k, v]) => [k, v.color])
@@ -35,6 +36,8 @@ function renderAdvisories() {
   const list = document.getElementById('advisoryList');
   if (!list) return;
 
+  const role = getRole();
+
   if (!state.advisories.length) {
     list.innerHTML = `
       <li class="advisory advisory--low">
@@ -48,18 +51,46 @@ function renderAdvisories() {
     return;
   }
 
-  const ordered = [...state.advisories].sort((a, b) => {
+  let ordered = [...state.advisories];
+
+  // Filter out internal operational signals for visitors to reduce confusion
+  if (role === 'public') {
+    ordered = ordered.filter((a) => {
+      const body = (a.body || '').toLowerCase();
+      const title = (a.title || '').toLowerCase();
+      return !body.includes('staff') && !body.includes('medical') && !body.includes('readiness') && !title.includes('readiness');
+    });
+  }
+
+  ordered.sort((a, b) => {
     const at = new Date(a.generatedAt || 0).getTime();
     const bt = new Date(b.generatedAt || 0).getTime();
     return bt - at;
   });
 
+  if (!ordered.length) {
+    list.innerHTML = `
+      <li class="advisory advisory--low">
+        <div class="advisory-meta">
+          <span class="meta-pill">System</span>
+          <span>No alerts</span>
+        </div>
+        <div class="advisory-title">All clear</div>
+        <div class="advisory-body">No active crowd or safety alerts for this destination.</div>
+      </li>`;
+    return;
+  }
+
   list.innerHTML = ordered.map((a) => {
     const cls = a.level === 'high' ? 'advisory--high' : a.level === 'low' ? 'advisory--low' : 'advisory--mod';
+    let sourceName = a.source || 'System';
+    if (role === 'public' && sourceName === 'Synthetic signal') {
+      sourceName = 'System Update';
+    }
     return `
       <li class="advisory ${cls}">
         <div class="advisory-meta">
-          <span class="meta-pill">${escapeHtml(a.source || 'System')}</span>
+          <span class="meta-pill">${escapeHtml(sourceName)}</span>
           <span>${escapeHtml(formatDate(a.generatedAt))}</span>
           <span>${escapeHtml(relativeTime(a.generatedAt))}</span>
         </div>
@@ -74,9 +105,15 @@ function renderPublishedAdvisory() {
   if (!root) return;
 
   const approved = state.advisoryWorkflow?.approved;
+  const role = getRole();
+
   if (!approved?.text) {
     root.classList.add('is-empty');
-    root.innerHTML = 'No public advisory has been published yet. Government users can publish one directly, or approve a public request below.';
+    if (role === 'public') {
+      root.innerHTML = 'No active travel alerts. Conditions are normal. Have a safe visit!';
+    } else {
+      root.innerHTML = 'No public advisory has been published yet. Government users can publish one directly above, or review a public request below.';
+    }
     return;
   }
 
@@ -143,11 +180,13 @@ function renderNews() {
   }
 
   if (!state.news.length) {
-    grid.innerHTML = Array(3).fill(`
-      <article class="news-card news-placeholder">
-        <span class="news-meta">No news found</span>
-        <div class="news-title">No recent news for this destination. Try a more popular city.</div>
-      </article>`).join('');
+    grid.innerHTML = `
+      <div class="news-empty">
+        <strong>No recent tourism or travel news found</strong>
+        <p style="margin:6px 0 0;font-size:12px;color:var(--text-muted)">
+          We searched for articles mentioning "${escapeHtml(state.place.name)}" and regional updates for "${escapeHtml(state.place.state || 'India')}", but found no recent tourism-related reports.
+        </p>
+      </div>`;
     return;
   }
 
@@ -169,35 +208,90 @@ function renderNews() {
 
 function renderWeather() {
   const w = state.weather;
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '-'; };
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
+  const cardSub = document.querySelector('#weatherPanel .card-sub');
 
   if (!w) {
-    ['weatherTempHero', 'wxCondition', 'wxHumidity', 'wxWind', 'wxPrecip', 'wxCloud', 'wxUV', 'wxVis', 'wxHighLow', 'wxRainDay', 'wxSun'].forEach((id) => set(id, '-'));
+    ['weatherTempHero', 'wxCondition', 'wxHumidity', 'wxWind', 'wxPrecip', 'wxCloud', 'wxUV', 'wxVis', 'wxHighLow', 'wxRainDay', 'wxSun', 'wxAQI', 'wxPM'].forEach((id) => set(id, '—'));
     const icon = document.getElementById('weatherIcon');
-    if (icon) icon.textContent = '';
+    if (icon) icon.textContent = '⚠️';
     const feels = document.querySelector('#weatherPanel .temp-feels span');
-    if (feels) feels.textContent = '-';
+    if (feels) feels.textContent = '—';
+    if (cardSub) cardSub.innerHTML = '<span style="color:var(--risk-high);font-weight:600">Live weather temporarily unavailable. Check connection.</span>';
     return;
   }
+
+  if (cardSub) cardSub.textContent = 'Open-Meteo · updated on page load · no API key required';
 
   const icon = document.getElementById('weatherIcon');
   if (icon) icon.textContent = w.icon || '';
 
-  set('weatherTempHero', w.temperatureC != null ? w.temperatureC : '-');
+  set('weatherTempHero', w.temperatureC != null ? w.temperatureC : '—');
 
   const feelsEl = document.querySelector('#weatherPanel .temp-feels span');
-  if (feelsEl) feelsEl.textContent = w.feelsLikeC != null ? w.feelsLikeC : '-';
+  if (feelsEl) feelsEl.textContent = w.feelsLikeC != null ? w.feelsLikeC : '—';
 
   set('wxCondition', w.label);
-  set('wxHumidity', w.humidity != null ? `${w.humidity}%` : '-');
-  set('wxWind', w.windKph != null ? `${w.windKph} km/h ${w.windDir || ''}`.trim() : '-');
-  set('wxPrecip', w.precipitationMm != null ? `${w.precipitationMm} mm` : '-');
-  set('wxCloud', w.cloudCover != null ? `${w.cloudCover}%` : '-');
-  set('wxUV', w.uvIndex != null ? `${w.uvIndex} (${uvLabel(w.uvIndex)})` : '-');
-  set('wxVis', w.visibilityKm != null ? `${w.visibilityKm} km` : '-');
-  set('wxHighLow', (w.highC != null && w.lowC != null) ? `${w.highC}° / ${w.lowC}°C` : '-');
-  set('wxRainDay', w.precipDayMm != null ? `${w.precipDayMm} mm` : '-');
-  set('wxSun', (w.sunrise && w.sunset) ? `${w.sunrise} / ${w.sunset}` : '-');
+  set('wxHumidity', w.humidity != null ? `${w.humidity}%` : '—');
+  set('wxWind', w.windKph != null ? `${w.windKph} km/h ${w.windDir || ''}`.trim() : '—');
+  set('wxPrecip', w.precipitationMm != null ? `${w.precipitationMm} mm` : '—');
+  set('wxCloud', w.cloudCover != null ? `${w.cloudCover}%` : '—');
+  set('wxUV', w.uvIndex != null ? `${w.uvIndex} (${uvLabel(w.uvIndex)})` : '—');
+  set('wxVis', w.visibilityKm != null ? `${w.visibilityKm} km` : '—');
+  set('wxHighLow', (w.highC != null && w.lowC != null) ? `${w.highC}° / ${w.lowC}°C` : '—');
+  set('wxRainDay', w.precipDayMm != null ? `${w.precipDayMm} mm` : '—');
+  set('wxSun', (w.sunrise && w.sunset) ? `${w.sunrise} / ${w.sunset}` : '—');
+
+  // AQI & particulate values
+  if (w.aqi) {
+    set('wxAQI', `${w.aqi.usAqi} (${w.aqi.label})`);
+    set('wxPM', `PM2.5: ${w.aqi.pm25} / PM10: ${w.aqi.pm10} µg/m³`);
+  } else {
+    set('wxAQI', '—');
+    set('wxPM', '—');
+  }
+}
+
+function renderWikipedia() {
+  const p = state.wiki;
+  const panel = document.getElementById('quickFactsPanel');
+  const title = document.getElementById('quickFactsTitle');
+  const extract = document.getElementById('quickFactsExtract');
+  const link = document.getElementById('quickFactsLink');
+  const heroCard = document.getElementById('heroCard');
+
+  if (!p || !p.extract) {
+    if (panel) panel.hidden = true;
+    if (heroCard) {
+      heroCard.style.backgroundImage = '';
+      heroCard.classList.remove('has-bg');
+    }
+    return;
+  }
+
+  if (panel) {
+    panel.hidden = false;
+    if (title) title.textContent = state.place.name || '';
+    if (extract) extract.textContent = p.extract;
+    if (link) {
+      if (p.pageUrl) {
+        link.href = p.pageUrl;
+        link.hidden = false;
+      } else {
+        link.hidden = true;
+      }
+    }
+  }
+
+  if (heroCard) {
+    if (p.image) {
+      heroCard.style.backgroundImage = `url('${p.image}')`;
+      heroCard.classList.add('has-bg');
+    } else {
+      heroCard.style.backgroundImage = '';
+      heroCard.classList.remove('has-bg');
+    }
+  }
 }
 
 function uvLabel(uv) {
@@ -250,6 +344,7 @@ export function initUI() {
     renderPendingAdvisories();
     renderNews();
     renderWeather();
+    renderWikipedia();
     injectIcons(document);
   });
 }

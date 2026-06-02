@@ -31,6 +31,7 @@ export async function fetchWeather(lat, lon) {
   const url = new URL(ENDPOINT);
   url.searchParams.set('latitude',  String(lat));
   url.searchParams.set('longitude', String(lon));
+  
   // Current observations
   url.searchParams.set('current', [
     'temperature_2m',
@@ -44,18 +45,31 @@ export async function fetchWeather(lat, lon) {
     'uv_index',
     'visibility',
   ].join(','));
+  
   // Daily high/low for today
   url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_sum,uv_index_max,sunrise,sunset');
+  // Hourly forecast for graph toggle
+  url.searchParams.set('hourly', 'temperature_2m,precipitation_probability');
+  
   url.searchParams.set('forecast_days', '1');
   url.searchParams.set('timezone', 'auto');
 
   try {
-    const res = await fetch(url.toString());
+    // Fetch weather and AQI in parallel
+    const [res, aqi] = await Promise.all([
+      fetch(url.toString()),
+      fetchAQI(lat, lon)
+    ]);
+
     if (!res.ok) return null;
     const data = await res.json();
     const c = data.current || {};
     const d = data.daily   || {};
+    const h = data.hourly  || {};
     const meta = CODE_TO_LABEL[c.weather_code] || { label: 'Unknown', icon: '?', favorability: 0.6 };
+
+    const hourlyTemps = h.temperature_2m ? h.temperature_2m.slice(8, 21) : [];
+    const hourlyPrecip = h.precipitation_probability ? h.precipitation_probability.slice(8, 21) : [];
 
     return {
       // Used by crowd-score model
@@ -80,11 +94,50 @@ export async function fetchWeather(lat, lon) {
       uvIndexMax:        round1(d.uv_index_max?.[0]),
       sunrise:           fmtTime(d.sunrise?.[0]),
       sunset:            fmtTime(d.sunset?.[0]),
+
+      // Hourly values (8 AM to 8 PM)
+      hourly: {
+        hours: Array.from({ length: 13 }, (_, i) => i + 8),
+        temperature: hourlyTemps.map(round1),
+        precipitation: hourlyPrecip.map(Math.round),
+      },
+
+      // Air Quality data
+      aqi: aqi,
     };
   } catch (e) {
     console.warn('[weather] fetch failed', e);
     return null;
   }
+}
+
+async function fetchAQI(lat, lon) {
+  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const cur = data.current || {};
+    return {
+      usAqi: cur.us_aqi,
+      pm25: cur.pm2_5,
+      pm10: cur.pm10,
+      label: aqiLabel(cur.us_aqi),
+    };
+  } catch (e) {
+    console.warn('[aqi] fetch failed', e);
+    return null;
+  }
+}
+
+function aqiLabel(aqi) {
+  if (aqi == null) return 'Unknown';
+  if (aqi <= 50) return 'Good';
+  if (aqi <= 100) return 'Moderate';
+  if (aqi <= 150) return 'Unhealthy for Sensitive Groups';
+  if (aqi <= 200) return 'Unhealthy';
+  if (aqi <= 300) return 'Very Unhealthy';
+  return 'Hazardous';
 }
 
 function tourismLabel(fav, temp) {
