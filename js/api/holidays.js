@@ -20,7 +20,9 @@ async function fetchYear(year) {
   try {
     const res = await fetch(ENDPOINT_YEAR(year));
     if (!res.ok) return null;
-    const data = await res.json();
+    const text = await res.text();
+    if (!text || !text.trim()) return null;
+    const data = JSON.parse(text);
     cache = { year, data };
     return data;
   } catch (e) {
