@@ -121,7 +121,7 @@ async function enhanceRecommendation(place, weather, holiday, model) {
     model: CONFIG.GEMINI_MODEL,
     prompt: recommendationPrompt(ctx),
     temperature: 0.6,
-    maxTokens: 80,
+    maxTokens: 1024,
   });
   if (result.text) {
     setState({ recommendation: result.text.replace(/^"|"$/g, '') });
@@ -137,7 +137,7 @@ async function enhanceHotspots(place, model) {
     model: CONFIG.GEMINI_MODEL,
     prompt: hotspotsPrompt({ placeLabel: place.label, placeType: place.type || 'destination' }),
     temperature: 0.4,
-    maxTokens: 120,
+    maxTokens: 1024,
   });
   if (!text) return;
   let names;
@@ -186,7 +186,7 @@ async function generatePublicAdvisory(ctx) {
       model: CONFIG.GEMINI_MODEL,
       prompt,
       temperature: 0.65,
-      maxTokens: 420,
+      maxTokens: 2048,
     });
     
     console.log(`[gemini] Attempt ${i + 1} response:`, result.text);
