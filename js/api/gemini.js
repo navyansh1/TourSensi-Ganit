@@ -107,7 +107,7 @@ Real popular zones for this specific place only. Keep names short (2–4 words).
 
 export function publicAdvisoryPrompt(ctx) {
   return `You are issuing an official public advisory from the tourism department.
-
+ 
 Destination: ${ctx.placeLabel}
 Risk level: ${ctx.risk}
 Crowd score: ${ctx.score}/100
@@ -116,12 +116,16 @@ Weather: ${ctx.weather}
 Public holiday: ${ctx.holiday || 'none'}
 Peak window: ${ctx.peak}
 Traffic state: ${ctx.traffic}
-
-Write a 4-sentence advisory to the general public (visitors / pilgrims / tourists). Tone: calm, factual, actionable. Cover:
-1. Current conditions in one sentence.
-2. What visitors should expect (queues, parking, weather impact).
-3. Concrete suggestions (best time to visit, alternate routes / gates, what to bring).
-4. A reassuring closing line about safety arrangements.
-
-No markdown, no bullet points, no headings. Plain prose only.`;
+ 
+Write a short, concise advisory for the public (visitors / tourists) using EXACTLY 3-4 bullet points (start each line with a hyphen "-"). 
+Keep the advisory slightly small and highly actionable.
+Bold key terms like times, actions, or locations using markdown **bolding** (e.g., **avoid peak hours** or **after 3 PM**).
+ 
+Cover:
+1. Current conditions/risk level.
+2. Expected crowd or traffic levels and peak windows.
+3. Actionable recommendation (best time to visit, alternate route/gate).
+4. Safety/monitoring status.
+ 
+Do not use headings. Plain bullet points with bolding only.`;
 }

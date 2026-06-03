@@ -125,7 +125,7 @@ function renderPublishedAdvisory() {
       <span class="meta-pill">Source: ${escapeHtml(labelRole(approved.requestedBy))}</span>
       <span>Published ${escapeHtml(formatDate(approved.publishedAt))}</span>
     </div>
-    <div class="published-advisory-text">${escapeHtml(approved.text)}</div>
+    <div class="published-advisory-text">${formatAdvisoryHtml(approved.text)}</div>
   `;
 }
 
@@ -156,7 +156,7 @@ function renderPendingAdvisories() {
           </div>
         </div>
       </div>
-      <div class="pending-advisory-text">${escapeHtml(item.text)}</div>
+      <div class="pending-advisory-text">${formatAdvisoryHtml(item.text)}</div>
       <div class="pending-advisory-actions">
         <button class="btn btn-primary btn-sm" type="button" data-advisory-action="approve" data-advisory-id="${escapeAttr(item.id)}">Approve</button>
         <button class="btn btn-ghost btn-sm btn-danger" type="button" data-advisory-action="reject" data-advisory-id="${escapeAttr(item.id)}">Reject</button>
@@ -347,4 +347,50 @@ export function initUI() {
     renderWikipedia();
     injectIcons(document);
   });
+}
+
+export function formatAdvisoryHtml(text) {
+  if (!text) return '';
+  
+  // Escape HTML to prevent XSS
+  const escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const lines = escaped.split('\n');
+  let inList = false;
+  let html = [];
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+
+    // Convert **bold** to <strong>bold</strong>
+    line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Check if it's a bullet point (starting with - or *)
+    if (line.startsWith('* ') || line.startsWith('- ')) {
+      if (!inList) {
+        html.push('<ul style="margin: 6px 0 6px 18px; padding-left: 0; list-style-type: disc; font-size: 13px;">');
+        inList = true;
+      }
+      const item = line.substring(2).trim();
+      html.push(`<li style="margin-bottom: 4px; font-size: 13px; color: var(--text);">${item}</li>`);
+    } else {
+      if (inList) {
+        html.push('</ul>');
+        inList = false;
+      }
+      html.push(`<p style="margin-bottom: 8px; font-size: 13px; color: var(--text);">${line}</p>`);
+    }
+  }
+
+  if (inList) {
+    html.push('</ul>');
+  }
+
+  return html.join('\n');
 }

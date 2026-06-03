@@ -2,7 +2,7 @@
 
 import { CONFIG } from '../config.js';
 import { state, setState } from './state.js';
-import { initUI } from './ui.js';
+import { initUI, formatAdvisoryHtml } from './ui.js';
 import { initCharts } from './charts.js';
 import { initMap } from './map.js';
 import { initSearch } from './search.js';
@@ -306,7 +306,7 @@ function wireAdvisoryModal() {
 
     modalDraft = buildAdvisoryDraft(advisoryText);
     
-    let html = advisoryText.split(/\n+/).map((p) => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    let html = formatAdvisoryHtml(advisoryText);
     if (isSyntheticFallback) {
       html += `<p class="muted" style="font-size:11px;margin-top:12px;border-top:1px dashed var(--border);padding-top:8px">ℹ️ Generated using safety rules (Gemini API unavailable or rate-limited).</p>`;
     }
