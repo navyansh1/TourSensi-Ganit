@@ -4,7 +4,7 @@
 const ENDPOINT = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
 const DEFAULT_MODEL = 'gemini-2.5-flash';
-const MODEL_FALLBACKS = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+const MODEL_FALLBACKS = ['gemini-2.5-flash'];
 
 export async function generate(opts) {
   const result = await generateDetailed(opts);
