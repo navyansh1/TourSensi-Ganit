@@ -21,6 +21,7 @@ import {
   publishApprovedAdvisory,
   queuePendingAdvisory,
   rejectPendingAdvisory,
+  subscribeToAdvisoryWorkflow,
 } from './advisory-store.js';
 
 let lastPlace = null;
@@ -428,7 +429,9 @@ function wireChartToggle() {
 
 async function boot() {
   wireThemeToggle();
-  syncAdvisoryWorkflow();
+  subscribeToAdvisoryWorkflow((workflow) => {
+    setState({ advisoryWorkflow: workflow });
+  });
   initUI();
   initCharts();
   initMap();

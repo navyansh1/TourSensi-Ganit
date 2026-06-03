@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,6 +18,29 @@ const db = getDatabase(app);
 const dbRef = ref(db, "advisories/workflow");
 
 const LOCAL_STORAGE_KEY = 'toursensi_advisory_workflow_v1';
+
+export function subscribeToAdvisoryWorkflow(callback) {
+  try {
+    return onValue(dbRef, (snap) => {
+      if (snap.exists()) {
+        const data = normalizeWorkflow(snap.val());
+        saveLocal(data);
+        callback(data);
+      } else {
+        const data = emptyWorkflow();
+        saveLocal(data);
+        callback(data);
+      }
+    }, (error) => {
+      console.warn("[advisory-store] Firebase Realtime DB subscription error", error);
+    });
+  } catch (e) {
+    console.warn("[advisory-store] Firebase Realtime DB subscribe failed", e);
+    // Fallback immediately with local storage data
+    callback(loadLocal());
+    return () => {}; // return empty unsubscribe
+  }
+}
 
 export async function loadAdvisoryWorkflow() {
   try {
