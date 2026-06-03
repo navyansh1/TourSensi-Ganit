@@ -54,6 +54,7 @@ export async function generateDetailed({ apiKey, model = DEFAULT_MODEL, prompt, 
       continue;
     }
     const data = await res.json();
+    console.log('[gemini] Full API response data:', data);
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n').trim();
     if (text) return { text, error: null, modelTried: modelName, status: res.status };
 
