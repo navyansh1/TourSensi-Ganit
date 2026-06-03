@@ -197,7 +197,13 @@ async function generatePublicAdvisory(ctx) {
   return lastResult;
 }
 
-function syncAdvisoryWorkflow(workflow = loadAdvisoryWorkflow()) {
+async function syncAdvisoryWorkflow(workflowPromise) {
+  let workflow;
+  if (workflowPromise && typeof workflowPromise.then === 'function') {
+    workflow = await workflowPromise;
+  } else {
+    workflow = workflowPromise || await loadAdvisoryWorkflow();
+  }
   setState({ advisoryWorkflow: workflow });
 }
 
