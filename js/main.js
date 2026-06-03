@@ -165,10 +165,10 @@ function generateFallbackPublicAdvisory(ctx) {
 }
 
 function isCompleteAdvisory(text) {
-  const value = String(text || '').trim();
+  const value = String(text || '').replace(/[`"']/g, '').trim();
   if (!value) return false;
-  if (value.length < 120) return false;
-  return /[.!?]["']?$/.test(value);
+  if (value.length < 60) return false; // Less strict length check
+  return /[.!?]\s*$/.test(value);      // Ends with sentence punctuation
 }
 
 async function generatePublicAdvisory(ctx) {
@@ -179,7 +179,8 @@ async function generatePublicAdvisory(ctx) {
   ];
 
   let lastResult = { text: null, error: 'Gemini request failed.' };
-  for (const prompt of attempts) {
+  for (let i = 0; i < attempts.length; i++) {
+    const prompt = attempts[i];
     const result = await generateDetailed({
       apiKey: CONFIG.GEMINI_API_KEY,
       model: CONFIG.GEMINI_MODEL,
@@ -187,6 +188,9 @@ async function generatePublicAdvisory(ctx) {
       temperature: 0.65,
       maxTokens: 420,
     });
+    
+    console.log(`[gemini] Attempt ${i + 1} response:`, result.text);
+    
     if (result.text && isCompleteAdvisory(result.text)) return result;
     lastResult = result.text ? { ...result, error: 'Gemini returned an incomplete advisory.' } : result;
   }
