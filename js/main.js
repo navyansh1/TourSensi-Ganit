@@ -2,7 +2,7 @@
 
 import { CONFIG } from '../config.js';
 import { state, setState } from './state.js';
-import { initUI, formatAdvisoryHtml } from './ui.js';
+import { initUI, formatAdvisoryHtml, showToast } from './ui.js';
 import { initCharts } from './charts.js';
 import { initMap } from './map.js';
 import { initSearch } from './search.js';
@@ -229,10 +229,12 @@ function wirePendingAdvisoryActions() {
 
     if (action === 'approve') {
       syncAdvisoryWorkflow(approvePendingAdvisory(id));
+      showToast('Advisory approved and published!');
       return;
     }
     if (action === 'reject') {
       syncAdvisoryWorkflow(rejectPendingAdvisory(id));
+      showToast('Advisory rejected and removed.');
     }
   });
 }
@@ -338,12 +340,13 @@ function wireAdvisoryModal() {
 
     if (modalMode === 'gov') {
       syncAdvisoryWorkflow(publishApprovedAdvisory(modalDraft));
-      body.innerHTML = `<p>${escapeHtml(modalDraft.text)}</p><p class="muted">Published to the website. Public users can now see this advisory in the dashboard.</p>`;
+      closeModal();
+      showToast('Advisory published successfully!');
     } else {
       syncAdvisoryWorkflow(queuePendingAdvisory(modalDraft));
-      body.innerHTML = `<p>${escapeHtml(modalDraft.text)}</p><p class="muted">Submitted for government review. It now appears in the pending queue.</p>`;
+      closeModal();
+      showToast('Advisory submitted for review!');
     }
-    submit.disabled = true;
   });
 
   modal.querySelectorAll('[data-close-modal]').forEach((el) => el.addEventListener('click', closeModal));

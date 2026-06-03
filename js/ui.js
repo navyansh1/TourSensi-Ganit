@@ -394,3 +394,44 @@ export function formatAdvisoryHtml(text) {
 
   return html.join('\n');
 }
+
+export function showToast(message, type = 'success') {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  
+  // Green checkmark icon
+  const iconHtml = `<span class="toast-icon">✓</span>`;
+  
+  toast.innerHTML = `
+    ${iconHtml}
+    <div class="toast-message">${escapeHtml(message)}</div>
+  `;
+
+  container.appendChild(toast);
+
+  // Force reflow
+  toast.offsetHeight;
+
+  // Show toast
+  toast.classList.add('show');
+
+  // Auto remove after 3.5 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    toast.addEventListener('transitionend', () => {
+      toast.remove();
+      if (container.children.length === 0) {
+        container.remove();
+      }
+    });
+  }, 3500);
+}
+
