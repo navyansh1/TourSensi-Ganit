@@ -14,9 +14,9 @@
   --text-on-dark:   #f8fafc;
   --text-on-dark-muted: #94a3b8;
 
-  --accent:         #0ea5e9;
-  --accent-strong:  #0284c7;
-  --accent-faint:   rgba(14,165,233,.10);
+  --accent:         #0a00eb; /* Ganit Vibrant Blue */
+  --accent-strong:  #0000cc;
+  --accent-faint:   rgba(10,0,235,.07);
 
   --risk-low:       #10b981;
   --risk-mod:       #f59e0b;
@@ -92,14 +92,11 @@ a { text-decoration: none; }
   padding: 4px 8px 4px 4px; border-radius: 10px;
   transition: background var(--transition);
 }
-.brand:hover { background: rgba(14,165,233,.06); }
+.brand:hover { background: var(--accent-faint); }
 .brand-mark {
   width: 34px; height: 34px;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(14,165,233,.35);
   flex-shrink: 0;
 }
 .brand-mark svg { width: 18px; height: 18px; }
@@ -924,15 +921,15 @@ canvas { max-width: 100%; }
   --text:           #e6edf3;
   --text-muted:     #8b949e;
   --text-subtle:    #6e7681;
-  --accent-faint:   rgba(14,165,233,.12);
+  --accent-faint:   rgba(10,0,235,.15);
   --shadow-card:    0 1px 3px rgba(0,0,0,.4);
   --shadow-md:      0 4px 16px rgba(0,0,0,.4);
   --shadow-hero:    0 12px 40px rgba(0,0,0,.6);
 }
 [data-theme="dark"] body { background: var(--bg-page); }
-[data-theme="dark"] .brand:hover { background: rgba(14,165,233,.10); }
+[data-theme="dark"] .brand:hover { background: var(--accent-faint); }
 [data-theme="dark"] .brand-name { color: var(--text); }
-[data-theme="dark"] .brand-mark { background: linear-gradient(135deg,#0ea5e9 0%,#1f6feb 100%); }
+[data-theme="dark"] .brand-mark { background: none; }
 [data-theme="dark"] .role-switcher { background: #21262d; border-color: var(--border); }
 [data-theme="dark"] .role-btn--active { background: #30363d; color: var(--text); }
 [data-theme="dark"] .role-btn[data-role="public"].role-btn--active { background: #0d2b1f; color: #4ade80; }
