@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,22 +14,22 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const docRef = doc(db, "advisories", "workflow");
+const db = getDatabase(app);
+const dbRef = ref(db, "advisories/workflow");
 
 const LOCAL_STORAGE_KEY = 'toursensi_advisory_workflow_v1';
 
 export async function loadAdvisoryWorkflow() {
   try {
-    const snap = await getDoc(docRef);
+    const snap = await get(dbRef);
     if (snap.exists()) {
-      const data = normalizeWorkflow(snap.data());
+      const data = normalizeWorkflow(snap.val());
       // Sync to localStorage as a fallback backup
       saveLocal(data);
       return data;
     }
   } catch (e) {
-    console.warn("[advisory-store] Firebase load failed, falling back to localStorage", e);
+    console.warn("[advisory-store] Firebase Realtime DB load failed, falling back to localStorage", e);
   }
   return loadLocal();
 }
@@ -84,9 +84,9 @@ async function saveWorkflow(workflow) {
   const data = normalizeWorkflow(workflow);
   saveLocal(data);
   try {
-    await setDoc(docRef, data);
+    await set(dbRef, data);
   } catch (e) {
-    console.error("[advisory-store] Firebase save failed", e);
+    console.error("[advisory-store] Firebase Realtime DB save failed", e);
   }
 }
 
