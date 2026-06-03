@@ -332,7 +332,7 @@ function relativeTime(d) {
 }
 
 function labelRole(role) {
-  return role === 'public' ? 'Public request' : 'Government draft';
+  return role === 'public' ? 'Public Request' : 'Official Update';
 }
 
 export function initUI() {

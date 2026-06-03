@@ -13,5 +13,5 @@ export const CONFIG = {
   NEWSDATA_API_KEY: '',
   GNEWS_API_KEY: '',
   NYT_API_KEY: '',
-  DEFAULT_PLACE: 'Kodaikanal',
+  DEFAULT_PLACE: 'Mumbai',
 };
