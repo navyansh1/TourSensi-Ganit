@@ -71,12 +71,19 @@ export async function queuePendingAdvisory(advisory) {
 
 export async function publishApprovedAdvisory(advisory) {
   const workflow = await loadAdvisoryWorkflow();
-  workflow.approved = {
+  const approvedList = Array.isArray(workflow.approved) ? workflow.approved : [];
+
+  const newApproved = {
     ...advisory,
     id: advisory.id || createId(),
     status: 'approved',
     publishedAt: new Date().toISOString(),
   };
+
+  // Filter out any existing approved advisory for the same placeLabel
+  workflow.approved = approvedList.filter((item) => item.placeLabel !== advisory.placeLabel);
+  workflow.approved.push(newApproved);
+
   await saveWorkflow(workflow);
   return workflow;
 }
@@ -86,11 +93,18 @@ export async function approvePendingAdvisory(id) {
   const match = workflow.pending.find((item) => item.id === id);
   if (!match) return workflow;
 
-  workflow.approved = {
+  const approvedList = Array.isArray(workflow.approved) ? workflow.approved : [];
+
+  const newApproved = {
     ...match,
     status: 'approved',
     publishedAt: new Date().toISOString(),
   };
+
+  // Filter out any existing approved advisory for the same placeLabel
+  workflow.approved = approvedList.filter((item) => item.placeLabel !== match.placeLabel);
+  workflow.approved.push(newApproved);
+
   workflow.pending = workflow.pending.filter((item) => item.id !== id);
   await saveWorkflow(workflow);
   return workflow;
@@ -132,14 +146,20 @@ function saveLocal(workflow) {
 }
 
 function normalizeWorkflow(data) {
+  let approvedList = [];
+  if (Array.isArray(data?.approved)) {
+    approvedList = data.approved;
+  } else if (data?.approved && typeof data.approved === 'object') {
+    approvedList = [data.approved];
+  }
   return {
-    approved: data?.approved || null,
+    approved: approvedList,
     pending: Array.isArray(data?.pending) ? data.pending : [],
   };
 }
 
 function emptyWorkflow() {
-  return { approved: null, pending: [] };
+  return { approved: [], pending: [] };
 }
 
 function createId() {

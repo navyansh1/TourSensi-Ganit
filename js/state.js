@@ -14,7 +14,7 @@ export const state = {
   hotspots: [],                  // [{ name, intensity, lat?, lon? }]
   advisories: [],                // [{ level, title, body }]
   advisoryWorkflow: {
-    approved: null,              // { id, text, placeLabel, risk, requestedBy, submittedAt, publishedAt }
+    approved: [],                // [{ id, text, placeLabel, risk, requestedBy, submittedAt, publishedAt }]
     pending: [],                 // [{ id, text, placeLabel, risk, requestedBy, submittedAt }]
   },
   news: [],                      // [{ title, source, url, publishedAt }]

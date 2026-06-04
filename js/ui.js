@@ -104,7 +104,12 @@ function renderPublishedAdvisory() {
   const root = document.getElementById('publishedAdvisory');
   if (!root) return;
 
-  const approved = state.advisoryWorkflow?.approved;
+  const approvedList = state.advisoryWorkflow?.approved || [];
+  const currentPlaceLabel = state.place?.label;
+  const approved = Array.isArray(approvedList)
+    ? approvedList.find((item) => item.placeLabel === currentPlaceLabel)
+    : null;
+
   const role = getRole();
 
   if (!approved?.text) {
@@ -133,11 +138,14 @@ function renderPendingAdvisories() {
   const root = document.getElementById('pendingAdvisoryList');
   if (!root) return;
 
-  const pending = [...(state.advisoryWorkflow?.pending || [])].sort((a, b) => {
-    const at = new Date(a.submittedAt || 0).getTime();
-    const bt = new Date(b.submittedAt || 0).getTime();
-    return bt - at;
-  });
+  const currentPlaceLabel = state.place?.label;
+  const pending = [...(state.advisoryWorkflow?.pending || [])]
+    .filter((item) => item.placeLabel === currentPlaceLabel)
+    .sort((a, b) => {
+      const at = new Date(a.submittedAt || 0).getTime();
+      const bt = new Date(b.submittedAt || 0).getTime();
+      return bt - at;
+    });
 
   if (!pending.length) {
     root.innerHTML = '<div class="pending-advisory-empty">No public requests are waiting for approval.</div>';

@@ -96,14 +96,15 @@ Avoid casually committing `config.js` if it contains real keys.
 - Advisory generation retries once with a stricter prompt if Gemini returns an incomplete paragraph.
 
 ### Advisory workflow
-- Published public advisory is shown directly on the dashboard for all users.
-- Public users can request an advisory (queued for government review).
+- **Location-Specific Advisories:** Both approved advisories and pending review queues are filtered by and stored specific to the selected destination (no longer shared globally).
+- Published public advisory is shown directly on the dashboard for all users when the corresponding location is active.
+- Public users can request an advisory (queued for government review for that specific location).
 - Government users can generate and publish directly from the modal.
-- Government users see a pending queue with approve/reject actions.
+- Government users see a pending queue with approve/reject actions filtered for the current active destination.
 - Advisory timeline is ordered newest to oldest with timestamps and relative time labels.
 - Older synthetic advisories have staggered synthetic timestamps so the timeline reads like a real feed.
 - Advisory content area is scrollable.
-- Advisory storage uses browser `localStorage` (see "Advisory storage" below).
+- Advisory storage uses Firebase Realtime Database with an automatic local fallback (stored under `localStorage`). Includes dynamic migration to support transitioning from the old single-advisory format to the new multi-advisory list format.
 
 ### UX
 - Government / Public role switcher in the topbar; each role shows different panels.
@@ -168,19 +169,11 @@ toursensi/
 
 ## Advisory storage
 
-The advisory workflow uses browser `localStorage` under the key `toursensi_advisory_workflow_v1`.
+The advisory workflow uses **Firebase Realtime Database** as the primary storage medium, allowing advisories to be synchronized in real-time across different browsers, devices, and sessions. 
 
-That means:
-- Works well for demos and same-browser testing.
-- Not shared across different devices, browsers, or users.
-- Pending approvals and published advisories are local to that browser.
-
-Current storage module: `js/advisory-store.js`
-
-If you want shared moderation later, the simplest upgrade is:
-- Vercel for hosting
-- one Vercel serverless Gemini proxy route
-- Supabase for `pending_advisories` and `published_advisories`
+- **Real-Time Synchronization:** Updates made by government officials (approvals/rejections) or requests submitted by public users propagate to all active clients immediately.
+- **Local Fallback:** If the Firebase database is inaccessible or fails to load, it automatically falls back to browser `localStorage` under the key `toursensi_advisory_workflow_v1`.
+- **Current storage module:** [advisory-store.js](file:///c:/Users/NavyanshKothari/GenAI/Toursensi/js/advisory-store.js)
 
 ---
 
