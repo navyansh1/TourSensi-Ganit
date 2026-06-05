@@ -76,6 +76,7 @@ Avoid casually committing `config.js` if it contains real keys.
 
 ### Core dashboard
 - Place search with Fuse.js over curated Indian destinations, plus Nominatim/OSM geocoding fallback for any query not in the curated list.
+- **Real-Time Search Loading Popup:** A sleek, compact loading overlay that appears upon searching/selecting a destination (and during initial dashboard bootup). It displays a checklist of 5 concurrent intelligence streams (Weather, Holidays, Wikipedia, News, and AI Insights) checking off in real-time, accompanied by a dynamic progress bar, staying visible until all metrics are fully loaded.
 - Hero card with Destination Health Score, risk badge, recommendation, and current situation. Shows a beautiful **Wikipedia Cover Photo** of the destination with glassmorphism gradient overlay when available.
 - **Quick Facts Card** displays a factual summary of the chosen destination fetched dynamically from Wikipedia REST API.
 - Risk legend: `Healthy >= 75`, `Caution 50-74`, `Risky < 50`.

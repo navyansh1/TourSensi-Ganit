@@ -360,6 +360,45 @@
     </div>
   </div>
 
+  <!-- Search Loading Modal -->
+  <div class="modal" id="searchLoadingModal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel loading-panel" role="dialog" aria-modal="true">
+      <div class="modal-body loading-panel-body">
+        <div class="loading-glow-ring"></div>
+        <h3 id="loadingModalTitle" class="loading-title">Analyzing Destination</h3>
+        <p class="loading-subtitle">Gathering real-time intelligence and calculating safety scores...</p>
+        
+        <ul class="loading-steps">
+          <li id="stepWeather" class="loading-step is-pending">
+            <span class="step-status-icon"></span>
+            <span>Weather &amp; Atmosphere Conditions</span>
+          </li>
+          <li id="stepHoliday" class="loading-step is-pending">
+            <span class="step-status-icon"></span>
+            <span>Calendar &amp; Holiday Insights</span>
+          </li>
+          <li id="stepWiki" class="loading-step is-pending">
+            <span class="step-status-icon"></span>
+            <span>Wikipedia Historical Context</span>
+          </li>
+          <li id="stepNews" class="loading-step is-pending">
+            <span class="step-status-icon"></span>
+            <span>Local Signal Alerts &amp; News</span>
+          </li>
+          <li id="stepGemini" class="loading-step is-pending">
+            <span class="step-status-icon"></span>
+            <span>AI Destination Intelligence</span>
+          </li>
+        </ul>
+        
+        <div class="loading-progress-bar-wrap">
+          <div id="loadingProgressBar" class="loading-progress-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>

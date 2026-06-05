@@ -29,8 +29,53 @@ let lastModelOutput = null;
 let modalMode = 'gov';
 let modalDraft = null;
 
+function showSearchLoadingModal() {
+  const modal = document.getElementById('searchLoadingModal');
+  const bar = document.getElementById('loadingProgressBar');
+  if (!modal) return;
+
+  // Reset steps
+  const steps = modal.querySelectorAll('.loading-step');
+  steps.forEach(s => {
+    s.className = 'loading-step is-pending';
+  });
+
+  // Set the first three as loading (Weather, Holiday, Wiki run first)
+  document.getElementById('stepWeather').className = 'loading-step is-loading';
+  document.getElementById('stepHoliday').className = 'loading-step is-loading';
+  document.getElementById('stepWiki').className = 'loading-step is-loading';
+
+  if (bar) bar.style.width = '10%';
+
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function updateSearchLoadingStep(stepId, status) {
+  const step = document.getElementById(stepId);
+  if (!step) return;
+  step.className = `loading-step ${status}`;
+}
+
+function updateLoadingProgress(completedCount) {
+  const bar = document.getElementById('loadingProgressBar');
+  if (!bar) return;
+  const percentages = [10, 28, 46, 64, 82, 100];
+  bar.style.width = `${percentages[completedCount]}%`;
+}
+
+function hideSearchLoadingModal() {
+  const modal = document.getElementById('searchLoadingModal');
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = '';
+}
+
 async function selectPlace(place) {
   lastPlace = place;
+  showSearchLoadingModal();
+  let completed = 0;
+
   setState({
     place: {
       label: place.label,
@@ -49,17 +94,34 @@ async function selectPlace(place) {
     aqi: null,
   });
 
+  const wrap = (promise, stepId) => {
+    return promise
+      .then((res) => {
+        updateSearchLoadingStep(stepId, 'is-complete');
+        completed++;
+        updateLoadingProgress(completed);
+        return res;
+      })
+      .catch((err) => {
+        console.warn(`${stepId} error`, err);
+        updateSearchLoadingStep(stepId, 'is-complete');
+        completed++;
+        updateLoadingProgress(completed);
+        return null;
+      });
+  };
+
   // Fetch weather, holidays, and Wikipedia summary in parallel
-  const [weather, holiday, wiki] = await Promise.all([
-    fetchWeather(place.lat, place.lon),
-    fetchTodayHoliday(),
-    fetchWikiSummary(place.name),
-  ]);
+  const weatherPromise = wrap(fetchWeather(place.lat, place.lon), 'stepWeather');
+  const holidayPromise = wrap(fetchTodayHoliday(), 'stepHoliday');
+  const wikiPromise = wrap(fetchWikiSummary(place.name), 'stepWiki');
+
+  const [weather, holiday, wiki] = await Promise.all([weatherPromise, holidayPromise, wikiPromise]);
 
   const model = computeIntelligence({
     weather,
-    isHoliday: holiday.isHoliday,
-    holidayName: holiday.name,
+    isHoliday: holiday?.isHoliday || false,
+    holidayName: holiday?.name || '',
     placeType: place.type || 'destination',
     placeName: place.name || place.label || '',
   });
@@ -67,8 +129,8 @@ async function selectPlace(place) {
 
   setState({
     weather,
-    isHoliday: holiday.isHoliday,
-    holidayName: holiday.name,
+    isHoliday: holiday?.isHoliday || false,
+    holidayName: holiday?.name || '',
     score: model.score,
     risk: model.risk,
     recommendation: model.recommendation,
@@ -82,9 +144,24 @@ async function selectPlace(place) {
 
   updatePublicTip();
 
-  loadNews(place).catch((e) => console.warn('news error', e));
-  enhanceRecommendation(place, weather, holiday, model).catch((e) => console.warn('gemini error', e));
-  enhanceHotspots(place, model).catch((e) => console.warn('gemini hotspots error', e));
+  // Set next steps to loading
+  updateSearchLoadingStep('stepNews', 'is-loading');
+  updateSearchLoadingStep('stepGemini', 'is-loading');
+
+  const newsPromise = wrap(loadNews(place), 'stepNews');
+  const geminiPromise = wrap(
+    Promise.all([
+      enhanceRecommendation(place, weather, holiday, model),
+      enhanceHotspots(place, model)
+    ]),
+    'stepGemini'
+  );
+
+  await Promise.all([newsPromise, geminiPromise]);
+
+  // Small delay for visual checklist completion and progress bar fill
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  hideSearchLoadingModal();
 }
 
 async function loadNews(place) {
